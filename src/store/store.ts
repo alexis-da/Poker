@@ -33,6 +33,8 @@ export interface PlayStats {
 
 export interface Settings {
   fourColor: boolean;
+  /** « lisible » : gros index façon salles en ligne ; « illustre » : cartes traditionnelles. */
+  cardStyle: 'lisible' | 'illustre';
   botSpeed: 'lent' | 'normal' | 'rapide';
   coachMode: 'visible' | 'apres' | 'off';
   opponents: number;
@@ -67,6 +69,7 @@ export const emptyPlay = (): PlayStats => ({
 
 export const defaultSettings = (): Settings => ({
   fourColor: true,
+  cardStyle: 'lisible',
   botSpeed: 'normal',
   coachMode: 'visible',
   opponents: 5,

@@ -35,6 +35,20 @@ principes de stratégie, glossaire.
 **Statistiques** — mains jouées, gain net et BB/100, VPIP, PFR, courbe de gains, qualité des
 décisions selon le coach, réussite par exercice.
 
+## Interface
+
+L’écran de jeu reprend les codes de lisibilité des salles de poker en ligne : cartes à gros index
+en 4 couleurs, plaques de joueurs avec le tapis en gros chiffres, mises posées devant chaque joueur,
+barre de temps sous le joueur qui parle, gros boutons d’action avec les tailles de mise juste au-dessus.
+Sur téléphone, la table et la console d’action tiennent sur un seul écran.
+
+Deux styles de cartes (réglage à la table) :
+- **Gros index** (par défaut), dessinées par l’application, avec ou sans jeu 4 couleurs ;
+- **Illustrées** : « Vectorized Playing Cards 1.3 » de Chris Aguilar, sous licence
+  **LGPL-3.0**, récupérées via le paquet npm `cardsJS`. Les fichiers SVG sont dans
+  `public/cards/` avec leur licence (`COPYING.LESSER.txt`, `COPYING.txt`, `README.txt`) ;
+  seules les métadonnées Inkscape ont été retirées et un `viewBox` ajouté.
+
 ## Démarrer
 
 ```bash

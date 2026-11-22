@@ -1,3 +1,4 @@
+import { ChipStack } from '../components/Chips';
 import { CardRow } from '../components/PlayingCard';
 import { parseCards } from '../engine/cards';
 import { useAppData } from '../store/store';
@@ -26,9 +27,9 @@ export function Home() {
         <div className="hero__text">
           <p className="eyebrow">No-Limit Texas Hold’em · 6-max</p>
           <h1>
-            Chaque main est une décision.
+            Lisez la table.
             <br />
-            Entraînez-vous à bien les prendre.
+            <span>Prenez la bonne décision.</span>
           </h1>
           <p className="lede">
             Jouez contre des bots aux styles différents avec un coach qui commente vos choix, enchaînez des exercices ciblés et vérifiez
@@ -43,13 +44,25 @@ export function Home() {
             </a>
           </div>
         </div>
-        <div className="hero__table" aria-hidden="true">
-          <div className="mini-felt">
-            <CardRow cards={HERO_BOARD} size="sm" placeholders={5} />
-            <div className="mini-felt__hand">
-              <CardRow cards={HERO_CARDS} size="lg" />
+        <div className="hero__scene" aria-hidden="true">
+          <div className="scene">
+            <div className="scene__felt">
+              <div className="scene__board">
+                <CardRow cards={HERO_BOARD} size="md" placeholders={5} />
+              </div>
+              <div className="scene__pot">
+                <ChipStack amount={3850} size={26} maxColumns={4} />
+                <span>Pot 38,5 BB</span>
+              </div>
             </div>
-            <span className="mini-felt__caption">Quinte hauteur As · le jeu max</span>
+            <div className="scene__hand">
+              <CardRow cards={HERO_CARDS} size="xl" fan />
+            </div>
+            <div className="scene__badge">
+              <span className="scene__badge-label">Votre main</span>
+              <strong>Le jeu max</strong>
+              <span className="scene__badge-hand">Quinte hauteur As</span>
+            </div>
           </div>
         </div>
       </section>

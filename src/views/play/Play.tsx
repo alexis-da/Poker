@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BOT_PROFILES, decideBot, PROFILE_BY_ID } from '../../engine/bot';
 import { getAdvice, gradeDecision } from '../../engine/coach';
 import { describeScore, evaluate } from '../../engine/evaluator';
+import { handClassOf } from '../../engine/ranges';
 import { formatBB, getLegalActions, type Action } from '../../engine/game';
 import { useSettings } from '../../store/store';
 import { ActionBar } from './ActionBar';
@@ -143,6 +144,17 @@ function TableSettings() {
           <option value="rapide">Rapide</option>
         </select>
       </label>
+      <label>
+        Cartes
+        <select id="card-style" value={settings.cardStyle} onChange={(e) => setSettings({ cardStyle: e.target.value as typeof settings.cardStyle })}>
+          <option value="lisible">Gros index</option>
+          <option value="illustre">Illustrées</option>
+        </select>
+      </label>
+      <label className="check">
+        <input id="four-color" type="checkbox" checked={settings.fourColor} onChange={(e) => setSettings({ fourColor: e.target.checked })} />
+        Jeu 4 couleurs (cartes à gros index)
+      </label>
       <label className="check">
         <input id="auto-next" type="checkbox" checked={settings.autoNext} onChange={(e) => setSettings({ autoNext: e.target.checked })} />
         Main suivante automatique
@@ -168,12 +180,17 @@ export function Play() {
 
   // Les bots jouent avec un léger délai.
   const thinking = game && !game.result && game.toAct !== null && !game.players[game.toAct].isHuman ? game.toAct : null;
+  const thinkMs = useMemo(
+    () => Math.round(SPEED_MS[settings.botSpeed] * (0.7 + Math.random() * 0.6)),
+    // Un nouveau délai à chaque nouvel état de la partie.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [game, settings.botSpeed],
+  );
   useEffect(() => {
     if (!game || thinking === null) return;
-    const delay = SPEED_MS[settings.botSpeed] * (0.7 + Math.random() * 0.6);
-    const t = window.setTimeout(() => botAct(decideBot(game)), delay);
+    const t = window.setTimeout(() => botAct(decideBot(game)), thinkMs);
     return () => window.clearTimeout(t);
-  }, [game, thinking, settings.botSpeed]);
+  }, [game, thinking, thinkMs]);
 
   // Main suivante automatique.
   const heroBroke = !!game && game.players[heroIndex].stack <= 0;
@@ -251,23 +268,18 @@ export function Play() {
           )}
         </div>
 
-        <Table game={game} thinking={thinking} />
+        <Table game={game} thinking={thinking} thinkMs={thinkMs} />
 
+        <div className="console">
         <div className="hero-strip">
-          <div className="hero-strip__info">
-            <span className="hero-strip__pos">{game.positions[heroIndex] ?? '—'}</span>
-            <span>
-              {heroHand ? (
-                <>
-                  Votre main : <strong>{heroHand}</strong>
-                </>
-              ) : hero.folded ? (
-                'Vous êtes couché'
-              ) : (
-                'Préflop'
-              )}
-            </span>
-            <span className="muted">Tapis {formatBB(hero.stack, game.bigBlind)}</span>
+          <span className="hero-strip__pos">{game.positions[heroIndex] ?? '—'}</span>
+          <div className="hero-strip__hand">
+            <span className="hero-strip__label">{hero.folded ? 'Couché' : game.board.length ? 'Votre main' : 'Préflop'}</span>
+            <strong>{hero.folded ? '—' : (heroHand ?? handClassOf(hero.hole[0], hero.hole[1]))}</strong>
+          </div>
+          <div className="hero-strip__stack">
+            <span className="hero-strip__label">Tapis</span>
+            <strong>{formatBB(hero.stack, game.bigBlind)}</strong>
           </div>
         </div>
 
@@ -298,6 +310,7 @@ export function Play() {
             {hero.folded && <span className="muted"> · vous êtes couché, la main continue</span>}
           </div>
         )}
+        </div>
       </div>
 
       <aside className="play__side">

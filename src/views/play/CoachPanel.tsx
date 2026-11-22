@@ -36,6 +36,36 @@ export function EquityMeter({ equity, required }: { equity: number; required: nu
   );
 }
 
+/** Jauge circulaire : équité (arc doré) et équité requise (repère blanc). */
+export function EquityGauge({ equity, required }: { equity: number; required: number | null }) {
+  const r = 42;
+  const c = 2 * Math.PI * r;
+  const ok = required === null || equity >= required;
+  const angle = (required ?? 0) * 360 - 90;
+  const mx = 50 + r * Math.cos((angle * Math.PI) / 180);
+  const my = 50 + r * Math.sin((angle * Math.PI) / 180);
+  return (
+    <div className="gauge" role="img" aria-label={`Équité ${pct(equity)}${required !== null ? `, requise ${pct(required)}` : ''}`}>
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r={r} className="gauge__track" />
+        <circle
+          cx="50"
+          cy="50"
+          r={r}
+          className={`gauge__arc ${ok ? 'gauge__arc--ok' : 'gauge__arc--short'}`}
+          strokeDasharray={`${equity * c} ${c}`}
+          transform="rotate(-90 50 50)"
+        />
+        {required !== null && <circle cx={mx} cy={my} r="4.2" className="gauge__mark" />}
+      </svg>
+      <div className="gauge__center">
+        <strong>{Math.round(equity * 100)}</strong>
+        <span>% équité</span>
+      </div>
+    </div>
+  );
+}
+
 export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props) {
   const [revealedFor, setRevealedFor] = useState<string | null>(null);
   const key = advice ? `${advice.street}-${advice.toCall}-${advice.pot}` : null;
@@ -87,7 +117,23 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
             </strong>
             {advice.close && <span className="tag tag--warn">serré</span>}
           </div>
-          <EquityMeter equity={advice.equity} required={advice.required} />
+          <div className="coach__numbers">
+            <EquityGauge equity={advice.equity} required={advice.required} />
+            <dl className="coach__odds">
+              <div>
+                <dt>Requise</dt>
+                <dd>{advice.required === null ? '—' : pct(advice.required)}</dd>
+              </div>
+              <div>
+                <dt>Outs</dt>
+                <dd>{advice.outs ? advice.outs.outs.length : '—'}</dd>
+              </div>
+              <div>
+                <dt>Classement</dt>
+                <dd>top {Math.round(advice.topPercent)} %</dd>
+              </div>
+            </dl>
+          </div>
           <dl className="facts">
             <div>
               <dt>Main</dt>
@@ -105,12 +151,6 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
               <dt>À payer</dt>
               <dd>{advice.toCall ? formatBB(advice.toCall, bigBlind) : '—'}</dd>
             </div>
-            {advice.outs && (
-              <div>
-                <dt>Outs</dt>
-                <dd>{advice.outs.outs.length}</dd>
-              </div>
-            )}
           </dl>
           {advice.outs && advice.outs.outs.length > 0 && advice.outs.outs.length <= 15 && (
             <p className="coach__outs">

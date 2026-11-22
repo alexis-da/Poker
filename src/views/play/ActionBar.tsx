@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { CoachAdvice } from '../../engine/coach';
 import { formatBB, type Action, type GameState, type LegalActions } from '../../engine/game';
 import { preflopRaises } from '../../engine/bot';
@@ -83,35 +83,12 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   });
 
+  const pct = legal.maxRaiseTo > legal.minRaiseTo ? ((raiseTo - legal.minRaiseTo) / (legal.maxRaiseTo - legal.minRaiseTo)) * 100 : 100;
+  const callVerb = legal.canCheck ? 'Checker' : callAllIn ? 'Suivre tapis' : 'Suivre';
+  const raiseVerb = allIn ? 'Tapis' : isBet ? 'Miser' : 'Relancer à';
+
   return (
     <div className="action-bar">
-      <div className="action-bar__buttons">
-        <button
-          type="button"
-          id="act-fold"
-          className={`btn btn--fold ${reco === 'fold' ? 'btn--reco' : ''}`}
-          onClick={doFold}
-        >
-          Se coucher <kbd>F</kbd>
-        </button>
-        <button
-          type="button"
-          id="act-call"
-          className={`btn btn--call ${reco === 'call' || reco === 'check' ? 'btn--reco' : ''}`}
-          onClick={doCall}
-        >
-          {callLabel} <kbd>C</kbd>
-        </button>
-        <button
-          type="button"
-          id="act-raise"
-          className={`btn btn--raise ${reco === 'raise' ? 'btn--reco' : ''}`}
-          onClick={doRaise}
-          disabled={!legal.canRaise}
-        >
-          {legal.canRaise ? raiseLabel : 'Relance impossible'} <kbd>R</kbd>
-        </button>
-      </div>
       {legal.canRaise && (
         <div className="action-bar__sizing">
           <div className="presets" role="group" aria-label="Tailles de mise">
@@ -119,7 +96,7 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
               <button
                 type="button"
                 key={p.label}
-                className={`chip-btn ${raiseTo === p.to ? 'chip-btn--on' : ''}`}
+                className={`preset ${raiseTo === p.to ? 'preset--on' : ''}`}
                 onClick={() => setRaiseTo(p.to)}
               >
                 {p.label}
@@ -129,11 +106,13 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
           <div className="sizing-input">
             <input
               id="raise-slider"
+              className="slider"
               type="range"
               min={legal.minRaiseTo}
               max={legal.maxRaiseTo}
               step={1}
               value={raiseTo}
+              style={{ '--pct': `${pct}%` } as React.CSSProperties}
               onChange={(e) => setRaiseTo(Number(e.target.value))}
               aria-label="Montant de la mise"
             />
@@ -155,6 +134,38 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
           </div>
         </div>
       )}
+      <div className="action-bar__buttons">
+        <button
+          type="button"
+          id="act-fold"
+          className={`act act--fold ${reco === 'fold' ? 'act--reco' : ''}`}
+          onClick={doFold}
+        >
+          <span className="act__verb">Se coucher</span>
+          <kbd>F</kbd>
+        </button>
+        <button
+          type="button"
+          id="act-call"
+          className={`act act--call ${reco === 'call' || reco === 'check' ? 'act--reco' : ''}`}
+          onClick={doCall}
+        >
+          <span className="act__verb">{callVerb}</span>
+          {!legal.canCheck && <span className="act__amt">{formatBB(legal.toCall, bb)}</span>}
+          <kbd>C</kbd>
+        </button>
+        <button
+          type="button"
+          id="act-raise"
+          className={`act act--raise ${reco === 'raise' ? 'act--reco' : ''}`}
+          onClick={doRaise}
+          disabled={!legal.canRaise}
+        >
+          <span className="act__verb">{legal.canRaise ? raiseVerb : 'Relance impossible'}</span>
+          {legal.canRaise && <span className="act__amt">{formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}</span>}
+          <kbd>R</kbd>
+        </button>
+      </div>
     </div>
   );
 }

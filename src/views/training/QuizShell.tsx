@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { ChipFace } from '../../components/Chips';
 import { recordQuiz, useAppData, type QuizId } from '../../store/store';
 
 export interface QuizMeta {
@@ -150,5 +151,29 @@ export function Feedback({ correct, title, children }: { correct: boolean; title
       </p>
       <div className="feedback__body">{children}</div>
     </div>
+  );
+}
+
+const CHIP_COLORS = ['red', 'blue', 'green', 'black'] as const;
+
+/** Réponse chiffrée présentée comme un jeton de casino. */
+export function ChipChoice({
+  label,
+  index,
+  state,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  index: number;
+  state: 'idle' | 'right' | 'wrong';
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={`chip-choice chip-choice--${state}`} onClick={onClick} disabled={disabled}>
+      <ChipFace color={CHIP_COLORS[index % CHIP_COLORS.length]} />
+      <span className="chip-choice__label">{label}</span>
+    </button>
   );
 }

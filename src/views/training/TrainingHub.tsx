@@ -1,3 +1,4 @@
+import { ChipFace } from '../../components/Chips';
 import { useAppData } from '../../store/store';
 import { QUIZZES } from './QuizShell';
 
@@ -18,7 +19,10 @@ export function TrainingHub() {
           const acc = s.attempts ? Math.round((s.correct / s.attempts) * 100) : null;
           return (
             <a key={q.id} href={`#${q.route}`} className="module">
-              <span className="module__num">{i + 1}</span>
+              <span className="module__chip" aria-hidden="true">
+                <ChipFace color={(['red', 'blue', 'green', 'black', 'purple'] as const)[i]} />
+                <span>{['♠', '♥', '♦', '♣', '★'][i]}</span>
+              </span>
               <span className="module__body">
                 <strong>{q.title}</strong>
                 <span>{q.description}</span>

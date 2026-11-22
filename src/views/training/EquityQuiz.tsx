@@ -1,6 +1,6 @@
 import { CardRow } from '../../components/PlayingCard';
 import { generateEquity, type EquityQuestion } from '../../trainers/generators';
-import { Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { ChipChoice, Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
 
 export function EquityQuiz() {
   const meta = QUIZZES[4];
@@ -29,19 +29,16 @@ export function EquityQuiz() {
             </div>
           </div>
           <p className="quiz-question">Quelle est l’équité de la main A ? Choisissez la valeur la plus proche.</p>
-          <div className="answer-row answer-row--4">
+          <div className="chip-row-answers">
             {q.choices.map((c, i) => (
-              <button
+              <ChipChoice
                 key={c}
-                type="button"
-                className={`btn btn--choice ${answered && i === q.correctIndex ? 'btn--right' : ''} ${
-                  answered && i === answer && i !== q.correctIndex ? 'btn--wrong' : ''
-                }`}
-                onClick={() => submit(i)}
+                index={i}
+                label={`${c} %`}
+                state={answered && i === q.correctIndex ? 'right' : answered && i === answer ? 'wrong' : 'idle'}
                 disabled={answered}
-              >
-                {c} %
-              </button>
+                onClick={() => submit(i)}
+              />
             ))}
           </div>
         </div>

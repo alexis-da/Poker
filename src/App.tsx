@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Icon } from './components/Icons';
+import { preloadCards } from './components/PlayingCard';
 import { useSettings } from './store/store';
 import { Home } from './views/Home';
 import { Learn } from './views/Learn';
 import { Play } from './views/play/Play';
+import { useSession } from './views/play/session';
 import { Stats } from './views/Stats';
 import { EquityCalculator } from './views/tools/EquityCalculator';
 import { RangeViewer } from './views/tools/RangeViewer';
@@ -45,7 +47,12 @@ function readRoute(): string {
 
 export function App() {
   const [route, setRoute] = useState(readRoute);
-  const [settings, setSettings] = useSettings();
+  const [settings] = useSettings();
+  const session = useSession();
+
+  useEffect(() => {
+    if (settings.cardStyle === 'illustre') preloadCards();
+  }, [settings.cardStyle]);
 
   useEffect(() => {
     const onHash = () => {
@@ -59,29 +66,37 @@ export function App() {
   const { view: View, nav } = ROUTES[route];
 
   return (
-    <div className={`app ${settings.fourColor ? 'four-color' : ''}`}>
-      <nav className="rail" aria-label="Navigation principale">
-        <a href="#accueil" className="brand">
-          <span className="brand__mark" aria-hidden="true">
-            <Icon name="spade" size={18} />
-          </span>
-          <span className="brand__name">Coach Hold’em</span>
-        </a>
-        <ul className="rail__list">
-          {NAV.map((n) => (
-            <li key={n.id}>
-              <a href={`#${n.href ?? n.id}`} className={`rail__link ${nav === n.id ? 'rail__link--on' : ''}`} aria-current={nav === n.id ? 'page' : undefined}>
-                <Icon name={n.icon} />
+    <div className={`app ${settings.fourColor ? 'four-color' : ''} app--${nav}`}>
+      <header className="topbar">
+        <div className="topbar__inner">
+          <a href="#accueil" className="brand">
+            <span className="brand__mark" aria-hidden="true">
+              <Icon name="spade" size={16} />
+            </span>
+            <span className="brand__name">
+              Coach <em>Hold’em</em>
+            </span>
+          </a>
+          <nav className="topnav" aria-label="Navigation principale">
+            {NAV.map((n) => (
+              <a
+                key={n.id}
+                href={`#${n.href ?? n.id}`}
+                className={`topnav__link ${nav === n.id ? 'topnav__link--on' : ''}`}
+                aria-current={nav === n.id ? 'page' : undefined}
+              >
+                <Icon name={n.icon} size={18} />
                 <span>{n.label}</span>
               </a>
-            </li>
-          ))}
-        </ul>
-        <label className="rail__toggle">
-          <input type="checkbox" id="four-color" checked={settings.fourColor} onChange={(e) => setSettings({ fourColor: e.target.checked })} />
-          <span>Jeu 4 couleurs</span>
-        </label>
-      </nav>
+            ))}
+          </nav>
+          {session.game && nav !== 'jouer' && (
+            <a href="#jouer" className="topbar__live">
+              <span className="live-dot" aria-hidden="true" /> Table en cours · main {session.game.handNumber}
+            </a>
+          )}
+        </div>
+      </header>
       <main className="content">
         {nav === 'outils' && (
           <div className="subnav" role="tablist" aria-label="Outils">

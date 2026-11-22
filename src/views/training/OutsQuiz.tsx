@@ -1,7 +1,7 @@
 import { CardRow, InlineCards } from '../../components/PlayingCard';
 import { hitProbability, ruleOf2And4 } from '../../engine/outs';
 import { generateOuts, type OutsQuestion } from '../../trainers/generators';
-import { Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { ChipChoice, Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
 
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
@@ -23,19 +23,16 @@ export function OutsQuiz() {
           <p className="quiz-prompt">Votre main</p>
           <CardRow cards={q.hole} size="lg" />
           <p className="quiz-question">Combien d’outs pour toucher une quinte ou une couleur ?</p>
-          <div className="answer-row answer-row--4">
-            {q.choices.map((c) => (
-              <button
+          <div className="chip-row-answers">
+            {q.choices.map((c, i) => (
+              <ChipChoice
                 key={c}
-                type="button"
-                className={`btn btn--choice ${answered && c === q.correct ? 'btn--right' : ''} ${
-                  answered && c === answer && c !== q.correct ? 'btn--wrong' : ''
-                }`}
-                onClick={() => submit(c)}
+                index={i}
+                label={String(c)}
+                state={answered && c === q.correct ? 'right' : answered && c === answer ? 'wrong' : 'idle'}
                 disabled={answered}
-              >
-                {c}
-              </button>
+                onClick={() => submit(c)}
+              />
             ))}
           </div>
         </div>
