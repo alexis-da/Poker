@@ -1,6 +1,8 @@
+import { PlusIcon } from '@radix-ui/react-icons';
+import { Button, Callout, Card, Flex, Heading, Progress, SegmentedControl, Text, TextField } from '@radix-ui/themes';
 import { useEffect, useMemo, useState } from 'react';
 import { PlayingCard } from '../../components/PlayingCard';
-import { parseCards, RANK_LABELS, SUIT_SYMBOLS, makeCard, type Card } from '../../engine/cards';
+import { makeCard, parseCards, RANK_LABELS, SUIT_SYMBOLS, type Card as CardT } from '../../engine/cards';
 import { computeEquity, type EquityPlayer, type EquityResult } from '../../engine/equity';
 import { describeScore, evaluate } from '../../engine/evaluator';
 import { parseRange, rangeCombos } from '../../engine/ranges';
@@ -9,7 +11,7 @@ type Mode = 'cards' | 'range' | 'random';
 
 interface PlayerInput {
   mode: Mode;
-  cards: (Card | null)[];
+  cards: (CardT | null)[];
   range: string;
 }
 
@@ -23,7 +25,7 @@ const PRESETS: { label: string; players: (string | { range: string } | null)[]; 
   { label: 'Trois joueurs au flop', players: ['AsJs', 'TdTc', '9h8h'], board: 'Js9d7h' },
 ];
 
-function fromPreset(i: number): { players: PlayerInput[]; board: (Card | null)[] } {
+function fromPreset(i: number): { players: PlayerInput[]; board: (CardT | null)[] } {
   const pr = PRESETS[i];
   const players = pr.players.map<PlayerInput>((p) => {
     if (p === null) return { mode: 'random', cards: [null, null], range: '' };
@@ -39,16 +41,16 @@ const pctStr = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 export function EquityCalculator() {
   const initial = useMemo(() => fromPreset(0), []);
   const [players, setPlayers] = useState<PlayerInput[]>(initial.players);
-  const [board, setBoard] = useState<(Card | null)[]>(initial.board);
+  const [board, setBoard] = useState<(CardT | null)[]>(initial.board);
   const [active, setActive] = useState<Slot | null>({ kind: 'board', k: 0 });
   const [result, setResult] = useState<EquityResult | null>(null);
   const [computing, setComputing] = useState(false);
 
-  const used = new Set<Card>();
+  const used = new Set<CardT>();
   players.forEach((p) => p.mode === 'cards' && p.cards.forEach((c) => c !== null && used.add(c)));
   board.forEach((c) => c !== null && used.add(c));
 
-  const boardCards = board.filter((c): c is Card => c !== null);
+  const boardCards = board.filter((c): c is CardT => c !== null);
   const parsedRanges = players.map((p) => {
     if (p.mode !== 'range') return null;
     try {
@@ -62,8 +64,7 @@ export function EquityCalculator() {
   const problems: string[] = [];
   if (boardCards.length === 1 || boardCards.length === 2) problems.push('Le board doit compter 0, 3, 4 ou 5 cartes.');
   players.forEach((p, i) => {
-    if (p.mode === 'cards' && p.cards.filter((c) => c !== null).length !== 2)
-      problems.push(`Joueur ${i + 1} : choisissez deux cartes.`);
+    if (p.mode === 'cards' && p.cards.filter((c) => c !== null).length !== 2) problems.push(`Joueur ${i + 1} : choisissez deux cartes.`);
     if (p.mode === 'range' && parsedRanges[i]?.error) problems.push(`Joueur ${i + 1} : ${parsedRanges[i]!.error}.`);
     if (p.mode === 'range' && parsedRanges[i] && !parsedRanges[i]!.error && parsedRanges[i]!.combos.length === 0)
       problems.push(`Joueur ${i + 1} : aucune combinaison disponible.`);
@@ -78,7 +79,7 @@ export function EquityCalculator() {
     setComputing(true);
     const t = window.setTimeout(() => {
       const eqPlayers: EquityPlayer[] = players.map((p, i) => {
-        if (p.mode === 'cards') return { cards: p.cards as Card[] };
+        if (p.mode === 'cards') return { cards: p.cards as CardT[] };
         if (p.mode === 'range') return { range: parsedRanges[i]!.combos };
         return null;
       });
@@ -89,39 +90,36 @@ export function EquityCalculator() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputKey, problems.length]);
 
-  const setCard = (slot: Slot, card: Card | null) => {
-    if (slot.kind === 'board') {
-      setBoard((b) => b.map((c, k) => (k === slot.k ? card : c)));
-    } else {
-      setPlayers((ps) => ps.map((p, i) => (i === slot.p ? { ...p, cards: p.cards.map((c, k) => (k === slot.k ? card : c)) } : p)));
-    }
+  const setCard = (slot: Slot, card: CardT | null) => {
+    if (slot.kind === 'board') setBoard((b) => b.map((c, k) => (k === slot.k ? card : c)));
+    else setPlayers((ps) => ps.map((p, i) => (i === slot.p ? { ...p, cards: p.cards.map((c, k) => (k === slot.k ? card : c)) } : p)));
   };
+
+  const sameSlot = (a: Slot, b: Slot) => a.kind === b.kind && a.k === b.k && (a.kind === 'board' || a.p === (b as typeof a).p);
 
   const nextEmpty = (after: Slot | null): Slot | null => {
     const slots: Slot[] = [];
     players.forEach((p, i) => p.mode === 'cards' && [0, 1].forEach((k) => slots.push({ kind: 'player', p: i, k })));
     for (let k = 0; k < 5; k++) slots.push({ kind: 'board', k });
     const isEmpty = (s: Slot) => (s.kind === 'board' ? board[s.k] === null : players[s.p].cards[s.k] === null);
-    const same = (a: Slot, b: Slot) => a.kind === b.kind && a.k === b.k && (a.kind === 'board' || a.p === (b as typeof a).p);
-    const start = after ? slots.findIndex((s) => same(s, after)) + 1 : 0;
+    const start = after ? slots.findIndex((s) => sameSlot(s, after)) + 1 : 0;
     for (let i = 0; i < slots.length; i++) {
       const s = slots[(start + i) % slots.length];
-      if (after && same(s, after)) continue;
+      if (after && sameSlot(s, after)) continue;
       if (isEmpty(s)) return s;
     }
     return null;
   };
 
-  const pickCard = (c: Card) => {
+  const pickCard = (c: CardT) => {
     if (!active) return;
     setCard(active, c);
     setActive(nextEmpty(active));
   };
 
-  const isActive = (s: Slot) =>
-    active !== null && active.kind === s.kind && active.k === s.k && (s.kind === 'board' || (active as typeof s).p === s.p);
+  const isActive = (s: Slot) => active !== null && sameSlot(active, s);
 
-  const slotButton = (s: Slot, card: Card | null) => (
+  const slotButton = (s: Slot, card: CardT | null) => (
     <button
       type="button"
       key={`${s.kind}${s.kind === 'player' ? s.p : ''}-${s.k}`}
@@ -143,153 +141,150 @@ export function EquityCalculator() {
   return (
     <div className="page">
       <header className="page-head">
-        <p className="eyebrow">Outil</p>
-        <h1>Calculateur d’équité</h1>
-        <p className="lede">
-          Choisissez les mains (cartes précises, range ou main aléatoire) et le board : le calcul est exact quand c’est possible,
-          sinon simulé sur plusieurs dizaines de milliers de donnes.
-        </p>
+        <Text size="2" color="gray">
+          Outil
+        </Text>
+        <Heading size="8">Calculateur d’équité</Heading>
+        <Text as="p" size="3" color="gray" className="lede">
+          Choisissez les mains (cartes précises, range ou main aléatoire) et le board : le calcul est exact quand c’est possible, sinon
+          simulé sur plusieurs dizaines de milliers de donnes.
+        </Text>
       </header>
 
-      <div className="chip-row" role="group" aria-label="Exemples">
+      <Flex gap="2" wrap="wrap" aria-label="Exemples">
         {PRESETS.map((p, i) => (
-          <button key={p.label} type="button" className="chip-btn" onClick={() => load(i)}>
+          <Button key={p.label} size="2" variant="soft" color="gray" onClick={() => load(i)}>
             {p.label}
-          </button>
+          </Button>
         ))}
-      </div>
+      </Flex>
 
       <div className="calc">
         <div className="calc__inputs">
-          <section className="panel">
-            <h2 className="panel__title">Board</h2>
-            <div className="slots">
-              {board.map((c, k) => slotButton({ kind: 'board', k }, c))}
-              <button type="button" className="btn btn--small btn--ghost" onClick={() => setBoard([null, null, null, null, null])}>
+          <Card size="3">
+            <Flex justify="between" align="center" mb="3">
+              <Text size="2" weight="bold">
+                Board
+              </Text>
+              <Button size="1" variant="ghost" color="gray" onClick={() => setBoard([null, null, null, null, null])}>
                 Vider
-              </button>
-            </div>
-          </section>
+              </Button>
+            </Flex>
+            <div className="slots">{board.map((c, k) => slotButton({ kind: 'board', k }, c))}</div>
+          </Card>
 
           {players.map((p, i) => {
             const r = result && !problems.length ? result : null;
             const hand =
               p.mode === 'cards' && boardCards.length >= 3 && p.cards.every((c) => c !== null)
-                ? describeScore(evaluate([...(p.cards as Card[]), ...boardCards]))
+                ? describeScore(evaluate([...(p.cards as CardT[]), ...boardCards]))
                 : null;
             return (
-              <section key={i} className="panel calc-player">
-                <div className="calc-player__head">
-                  <h2 className="panel__title">Joueur {i + 1}</h2>
-                  <div className="segmented segmented--small" role="radiogroup" aria-label={`Type de main du joueur ${i + 1}`}>
-                    {(
-                      [
-                        ['cards', 'Cartes'],
-                        ['range', 'Range'],
-                        ['random', 'Aléatoire'],
-                      ] as const
-                    ).map(([m, l]) => (
-                      <button
-                        type="button"
-                        key={m}
-                        role="radio"
-                        aria-checked={p.mode === m}
-                        className={p.mode === m ? 'on' : ''}
-                        onClick={() => setPlayers((ps) => ps.map((q, j) => (j === i ? { ...q, mode: m } : q)))}
-                      >
-                        {l}
-                      </button>
-                    ))}
-                  </div>
-                  {players.length > 2 && (
-                    <button
-                      type="button"
-                      className="btn btn--small btn--ghost"
-                      onClick={() => setPlayers((ps) => ps.filter((_, j) => j !== i))}
-                      aria-label={`Retirer le joueur ${i + 1}`}
+              <Card key={i} size="3" className="calc-player">
+                <Flex justify="between" align="center" gap="3" wrap="wrap" mb="3">
+                  <Text size="2" weight="bold">
+                    Joueur {i + 1}
+                  </Text>
+                  <Flex gap="2" align="center">
+                    <SegmentedControl.Root
+                      size="1"
+                      value={p.mode}
+                      onValueChange={(m) => setPlayers((ps) => ps.map((q, j) => (j === i ? { ...q, mode: m as Mode } : q)))}
+                      aria-label={`Type de main du joueur ${i + 1}`}
                     >
-                      Retirer
-                    </button>
-                  )}
-                </div>
+                      <SegmentedControl.Item value="cards">Cartes</SegmentedControl.Item>
+                      <SegmentedControl.Item value="range">Range</SegmentedControl.Item>
+                      <SegmentedControl.Item value="random">Aléatoire</SegmentedControl.Item>
+                    </SegmentedControl.Root>
+                    {players.length > 2 && (
+                      <Button size="1" variant="ghost" color="gray" onClick={() => setPlayers((ps) => ps.filter((_, j) => j !== i))}>
+                        Retirer
+                      </Button>
+                    )}
+                  </Flex>
+                </Flex>
                 <div className="calc-player__body">
                   {p.mode === 'cards' && <div className="slots">{p.cards.map((c, k) => slotButton({ kind: 'player', p: i, k }, c))}</div>}
                   {p.mode === 'range' && (
-                    <label className="range-input">
-                      <input
+                    <Flex direction="column" gap="1" minWidth="0">
+                      <TextField.Root
                         id={`range-${i}`}
-                        type="text"
                         value={p.range}
                         placeholder="ex. 99+, AJs+, KQs, AQo+"
                         onChange={(e) => setPlayers((ps) => ps.map((q, j) => (j === i ? { ...q, range: e.target.value } : q)))}
+                        aria-label={`Range du joueur ${i + 1}`}
                       />
-                      <span className="muted">
+                      <Text size="1" color={parsedRanges[i]?.error ? 'tomato' : 'gray'}>
                         {parsedRanges[i]?.error ? parsedRanges[i]!.error : `${parsedRanges[i]?.combos.length ?? 0} combinaisons`}
-                      </span>
-                    </label>
+                      </Text>
+                    </Flex>
                   )}
-                  {p.mode === 'random' && <p className="muted">N’importe quelle main parmi les cartes restantes.</p>}
+                  {p.mode === 'random' && (
+                    <Text size="2" color="gray">
+                      N’importe quelle main parmi les cartes restantes.
+                    </Text>
+                  )}
                   <div className="calc-player__result">
                     {r ? (
                       <>
-                        <div className="eq-bar">
-                          <span style={{ width: `${r.equity[i] * 100}%` }} />
-                        </div>
-                        <div className="eq-numbers">
-                          <strong>{pctStr(r.equity[i])}</strong>
-                          <span className="muted">
+                        <Flex align="baseline" gap="2" wrap="wrap">
+                          <span className="eq-value">{pctStr(r.equity[i])}</span>
+                          <Text size="1" color="gray">
                             gagne {pctStr(r.win[i])} · partage {pctStr(r.tie[i])}
-                          </span>
-                        </div>
-                        {hand && <span className="muted">{hand}</span>}
+                          </Text>
+                        </Flex>
+                        <Progress value={r.equity[i] * 100} size="2" aria-label={`Équité du joueur ${i + 1}`} />
+                        {hand && (
+                          <Text size="1" color="gray">
+                            {hand}
+                          </Text>
+                        )}
                       </>
                     ) : (
-                      <span className="muted">—</span>
+                      <Text size="2" color="gray">
+                        —
+                      </Text>
                     )}
                   </div>
                 </div>
-              </section>
+              </Card>
             );
           })}
 
-          <div className="button-row">
-            {players.length < 6 && (
-              <button
-                type="button"
-                className="btn btn--ghost"
-                onClick={() => setPlayers((ps) => [...ps, { mode: 'random', cards: [null, null], range: '' }])}
-              >
-                Ajouter un joueur
-              </button>
-            )}
-          </div>
-          <div className="calc__status" aria-live="polite">
+          {players.length < 6 && (
+            <div>
+              <Button variant="soft" color="gray" onClick={() => setPlayers((ps) => [...ps, { mode: 'random', cards: [null, null], range: '' }])}>
+                <PlusIcon /> Ajouter un joueur
+              </Button>
+            </div>
+          )}
+          <div aria-live="polite">
             {problems.length ? (
-              <ul className="problems">
-                {problems.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
+              <Callout.Root color="amber" variant="surface" size="1">
+                <Callout.Text>{problems.join(' ')}</Callout.Text>
+              </Callout.Root>
             ) : computing ? (
-              <span className="muted">Calcul…</span>
+              <Text size="2" color="gray">
+                Calcul…
+              </Text>
             ) : result ? (
-              <span className="muted">
+              <Text size="2" color="gray">
                 {result.exact
                   ? `Calcul exact sur ${result.samples.toLocaleString('fr-FR')} boards possibles.`
                   : `Simulation sur ${result.samples.toLocaleString('fr-FR')} donnes (précision ± 0,5 point environ).`}
-              </span>
+              </Text>
             ) : null}
           </div>
         </div>
 
-        <section className="panel calc__picker">
-          <h2 className="panel__title">
+        <Card size="3" className="calc__picker">
+          <Text as="p" size="2" weight="bold" mb="3">
             {active
               ? active.kind === 'board'
                 ? `Carte du board n° ${active.k + 1}`
                 : `Joueur ${active.p + 1}, carte ${active.k + 1}`
               : 'Choisissez un emplacement'}
-          </h2>
+          </Text>
           <div className="picker">
             {[0, 1, 2, 3].map((s) => (
               <div key={s} className="picker__row">
@@ -313,8 +308,10 @@ export function EquityCalculator() {
               </div>
             ))}
           </div>
-          <p className="fineprint">Touchez un emplacement puis une carte. Touchez à nouveau une carte placée pour la retirer.</p>
-        </section>
+          <Text as="p" size="1" color="gray" mt="3">
+            Touchez un emplacement puis une carte. Touchez à nouveau une carte placée pour la retirer.
+          </Text>
+        </Card>
       </div>
     </div>
   );

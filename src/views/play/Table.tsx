@@ -1,18 +1,23 @@
+import { Avatar, Badge, Card, Text } from '@radix-ui/themes';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Avatar } from '../../components/Avatar';
-import { ChipStack } from '../../components/Chips';
 import { PlayingCard } from '../../components/PlayingCard';
+import GlareHover from '../../components/reactbits/GlareHover';
 import { PROFILE_BY_ID } from '../../engine/bot';
-import type { Card } from '../../engine/cards';
+import type { Card as CardT } from '../../engine/cards';
 import { bestFive, describeScore, evaluate } from '../../engine/evaluator';
 import { formatBB, potTotal, type GameState } from '../../engine/game';
 
 interface Props {
   game: GameState;
   thinking: number | null;
-  /** Temps de réflexion du bot qui parle, pour l'anneau de l'avatar. */
+  /** Temps de réflexion du bot qui parle, pour la barre de temps. */
   thinkMs: number;
 }
+
+type RadixColor = 'gray' | 'blue' | 'grass' | 'amber' | 'tomato';
+
+/** Couleur d'avatar par profil de bot. */
+export const PROFILE_COLOR: Record<string, RadixColor> = { roc: 'gray', reg: 'blue', lag: 'tomato', station: 'amber' };
 
 /** Vrai sur les écrans étroits, où la table passe en format vertical. */
 function useCompact(): boolean {
@@ -35,20 +40,18 @@ function seatPoint(i: number, n: number, scale: number, compact: boolean) {
   return { x: 50 + rx * scale * Math.cos(angle), y: 50 + ry * scale * Math.sin(angle) };
 }
 
-type TagKind = 'fold' | 'check' | 'call' | 'raise' | 'allin' | 'blind';
-
-function actionTag(label: string): { kind: TagKind; text: string } {
-  if (label.startsWith('Couché')) return { kind: 'fold', text: 'Couché' };
-  if (label.startsWith('Parole')) return { kind: 'check', text: 'Check' };
-  if (label.startsWith('Suit')) return { kind: 'call', text: label };
-  if (label.startsWith('Tapis')) return { kind: 'allin', text: label };
-  if (label.startsWith('SB') || label.startsWith('BB')) return { kind: 'blind', text: label };
-  return { kind: 'raise', text: label };
+function actionTag(label: string): { color: RadixColor; text: string } {
+  if (label.startsWith('Couché')) return { color: 'gray', text: 'Couché' };
+  if (label.startsWith('Parole')) return { color: 'blue', text: 'Check' };
+  if (label.startsWith('Suit')) return { color: 'grass', text: label };
+  if (label.startsWith('Tapis')) return { color: 'tomato', text: label };
+  if (label.startsWith('SB') || label.startsWith('BB')) return { color: 'gray', text: label };
+  return { color: 'amber', text: label };
 }
 
 /** Cartes communes, avec animation de distribution des nouvelles cartes. */
-function Board({ board, highlight }: { board: Card[]; highlight: Card[] | null }) {
-  const prev = useRef<Card[]>([]);
+function Board({ board, highlight }: { board: CardT[]; highlight: CardT[] | null }) {
+  const prev = useRef<CardT[]>([]);
   const firstNew =
     prev.current.length <= board.length && board.slice(0, prev.current.length).every((c, i) => c === prev.current[i])
       ? prev.current.length
@@ -88,7 +91,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
   const pot = potTotal(game);
   const streetBets = game.players.reduce((a, p) => a + p.bet, 0);
   const result = game.result;
-  const centerPot = result ? 0 : pot - streetBets;
+  const centerPot = result ? pot : pot - streetBets;
   const heroP = game.players.find((p) => p.isHuman);
   const heroHand =
     heroP && !heroP.folded && heroP.hole.length === 2 && game.board.length >= 3
@@ -96,7 +99,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
       : null;
 
   // Cartes gagnantes à mettre en valeur à l'abattage.
-  let winningCards: Card[] | null = null;
+  let winningCards: CardT[] | null = null;
   const winnerShare = new Map<number, number>();
   if (result) {
     for (const p of result.pots) {
@@ -114,23 +117,16 @@ export function Table({ game, thinking, thinkMs }: Props) {
       <div className="table">
         <div className="table__rail">
           <div className="table__felt">
-            <div className="felt__line" aria-hidden="true" />
-            <div className="felt__brand" aria-hidden="true">
-              Coach Hold’em
-            </div>
             <div className="table__center">
-              <div className="pot" aria-live="polite">
-                {centerPot > 0 && <ChipStack amount={centerPot} size={compact ? 16 : 20} maxColumns={4} />}
-                <span className="pot__amount">
-                  <span className="pot__label">Pot</span> {formatBB(result ? pot : centerPot, bb)}
-                </span>
-                {!result && streetBets > 0 && <span className="pot__total">Total {formatBB(pot, bb)}</span>}
-              </div>
+              <span className="pot" aria-live="polite">
+                Pot {formatBB(centerPot, bb)}
+                {!result && streetBets > 0 && <span className="pot__total"> · total {formatBB(pot, bb)}</span>}
+              </span>
               <Board board={game.board} highlight={winningCards} />
               {result && (
-                <div className="table-result" key={game.handNumber}>
+                <span className="table-result" key={game.handNumber}>
                   {result.summary}
-                </div>
+                </span>
               )}
             </div>
           </div>
@@ -145,14 +141,23 @@ export function Table({ game, thinking, thinkMs }: Props) {
         const showCards = p.isHuman || p.shown;
         const won = winnerShare.has(i);
         const net = result?.net[i] ?? 0;
-        const tag = p.lastAction && !result ? actionTag(p.lastAction) : null;
-        const side = pt.y < 30 ? 'top' : 'bottom';
+        const tag = p.lastAction && !result && !p.isHuman ? actionTag(p.lastAction) : null;
+        const cards = p.hole.map((c, k) => (
+          <PlayingCard
+            key={`${game.handNumber}-${k}`}
+            card={c}
+            faceDown={!showCards}
+            size={p.isHuman ? 'lg' : 'sm'}
+            tilt={k === 0 ? -5 : 5}
+            dealDelay={k * 120 + i * 40}
+            highlight={winningCards !== null && won && winningCards.includes(c)}
+          />
+        ));
         return (
           <div key={p.id}>
             <div
               className={[
                 'seat',
-                `seat--${side}`,
                 p.isHuman ? 'seat--hero' : '',
                 p.folded ? 'seat--folded' : '',
                 isTurn ? 'seat--turn' : '',
@@ -162,66 +167,84 @@ export function Table({ game, thinking, thinkMs }: Props) {
               style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
             >
               <div className="seat__cards">
-                {p.hole.map((c, k) => (
-                  <PlayingCard
-                    key={`${game.handNumber}-${k}`}
-                    card={c}
-                    faceDown={!showCards}
-                    size={p.isHuman ? 'lg' : 'sm'}
-                    tilt={k === 0 ? -6 : 6}
-                    dealDelay={k * 120 + i * 40}
-                    highlight={winningCards !== null && won && winningCards.includes(c)}
-                  />
-                ))}
+                {p.isHuman && p.hole.length > 0 ? (
+                  <GlareHover borderRadius="12px" glareOpacity={0.55} className="seat__glare">
+                    <span className="seat__hand-cards">{cards}</span>
+                  </GlareHover>
+                ) : (
+                  cards
+                )}
               </div>
-              <div className="seat__pod">
-                <Avatar name={p.name} profile={p.profile} isHero={p.isHuman} active={isTurn} size={compact ? 30 : 46} />
-                <div className="seat__box">
-                  <span className="seat__name">{p.isHuman ? 'Vous' : p.name}</span>
+              <Card size="1" variant="classic" className="seat__plate">
+                <Avatar
+                  size={compact ? '1' : p.isHuman ? '3' : '2'}
+                  radius="full"
+                  variant={isTurn || p.isHuman ? 'solid' : 'soft'}
+                  color={p.isHuman ? 'grass' : PROFILE_COLOR[p.profile ?? 'reg']}
+                  fallback={p.isHuman ? 'V' : p.name.slice(0, 1)}
+                />
+                <span className="seat__info">
+                  <Text size="1" color="gray" className="seat__name">
+                    {p.isHuman ? 'Vous' : p.name}
+                    {game.positions[i] ? ` · ${game.positions[i]}` : ''}
+                  </Text>
                   <span className="seat__stack">{p.sittingOut ? 'Éliminé' : formatBB(p.stack, bb)}</span>
-                  {profile && <span className="seat__profile">{profile.label}</span>}
-                  {p.isHuman && heroHand && <span className="seat__hand">{heroHand}</span>}
-                  {isTurn && (
-                    <span
-                      key={`${game.handNumber}-${game.history.length}`}
-                      className={`seat__timer ${thinking === i ? 'seat__timer--run' : ''}`}
-                      style={{ '--think': `${thinkMs}ms` } as CSSProperties}
-                    />
+                  {p.isHuman && heroHand && (
+                    <Text size="1" className="seat__hand">
+                      {heroHand}
+                    </Text>
                   )}
-                </div>
-                {game.positions[i] && <span className="seat__pos">{game.positions[i]}</span>}
+                  {!p.isHuman && profile && !compact && (
+                    <Text size="1" color="gray" className="seat__profile">
+                      {profile.label}
+                    </Text>
+                  )}
+                </span>
+                {isTurn && (
+                  <span
+                    key={`${game.handNumber}-${game.history.length}`}
+                    className={`seat__timer ${thinking === i ? 'seat__timer--run' : ''}`}
+                    style={{ '--think': `${thinkMs}ms` } as CSSProperties}
+                  />
+                )}
                 {game.button === i && (
                   <span className="seat__dealer" title="Bouton du donneur">
                     D
                   </span>
                 )}
-              </div>
-              {tag && <span className={`seat__tag seat__tag--${tag.kind}`}>{tag.text}</span>}
+              </Card>
+              {tag && (
+                <Badge className="seat__tag" color={tag.color} variant="solid" size={compact ? '1' : '2'}>
+                  {tag.text}
+                </Badge>
+              )}
               {result && net !== 0 && (
-                <span className={`seat__tag ${net > 0 ? 'seat__tag--win' : 'seat__tag--loss'}`}>
+                <Badge className="seat__tag seat__tag--net" color={net > 0 ? 'grass' : 'tomato'} variant="solid" size={compact ? '1' : '2'}>
                   {net > 0 ? '+' : '−'}
                   {formatBB(Math.abs(net), bb)}
-                </span>
+                </Badge>
               )}
             </div>
             {p.bet > 0 && !result && (
-              <div className="bet" style={{ left: `${bt.x}%`, top: `${bt.y}%` }}>
-                <ChipStack amount={p.bet} size={compact ? 13 : 16} maxColumns={3} maxPerColumn={6} />
-                <span>{formatBB(p.bet, bb)}</span>
-              </div>
+              <span className="bet" style={{ left: `${bt.x}%`, top: `${bt.y}%` }}>
+                <span className="chip-dot" aria-hidden="true" />
+                {formatBB(p.bet, bb)}
+              </span>
             )}
           </div>
         );
       })}
 
       {result &&
-        [...winnerShare.entries()].map(([w, amount]) => {
+        [...winnerShare.keys()].map((w) => {
           const to = seatPoint(w, n, 0.72, compact);
           const style = { '--tx': `${to.x}%`, '--ty': `${to.y}%` } as CSSProperties;
           return (
-            <div key={`fly-${game.handNumber}-${w}`} className="pot-flight" style={style} aria-hidden="true">
-              <ChipStack amount={amount} size={compact ? 16 : 20} maxColumns={4} />
-            </div>
+            <span key={`fly-${game.handNumber}-${w}`} className="pot-flight" style={style} aria-hidden="true">
+              <span className="chip-dot" />
+              <span className="chip-dot" />
+              <span className="chip-dot" />
+            </span>
           );
         })}
     </div>

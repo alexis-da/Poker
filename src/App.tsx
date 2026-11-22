@@ -1,5 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Icon } from './components/Icons';
+import {
+  BarChartIcon,
+  CardStackIcon,
+  HomeIcon,
+  MixerHorizontalIcon,
+  ReaderIcon,
+  TargetIcon,
+} from '@radix-ui/react-icons';
+import { Badge, TabNav } from '@radix-ui/themes';
+import { useEffect, useState, type ComponentType } from 'react';
 import { preloadCards } from './components/PlayingCard';
 import { useSettings } from './store/store';
 import { Home } from './views/Home';
@@ -16,7 +24,7 @@ import { PreflopQuiz } from './views/training/PreflopQuiz';
 import { TrainingHub } from './views/training/TrainingHub';
 import { WinnerQuiz } from './views/training/WinnerQuiz';
 
-const ROUTES: Record<string, { view: () => JSX.Element; nav: string }> = {
+const ROUTES: Record<string, { view: ComponentType; nav: string }> = {
   accueil: { view: Home, nav: 'accueil' },
   jouer: { view: Play, nav: 'jouer' },
   exercices: { view: TrainingHub, nav: 'exercices' },
@@ -32,12 +40,12 @@ const ROUTES: Record<string, { view: () => JSX.Element; nav: string }> = {
 };
 
 const NAV = [
-  { id: 'accueil', label: 'Accueil', icon: 'home' as const },
-  { id: 'jouer', label: 'Jouer', icon: 'play' as const },
-  { id: 'exercices', label: 'Exercices', icon: 'target' as const, href: 'exercices' },
-  { id: 'outils', label: 'Outils', icon: 'tools' as const, href: 'calculateur' },
-  { id: 'apprendre', label: 'Leçons', icon: 'book' as const },
-  { id: 'stats', label: 'Stats', icon: 'chart' as const },
+  { id: 'accueil', label: 'Accueil', icon: HomeIcon },
+  { id: 'jouer', label: 'Jouer', icon: CardStackIcon },
+  { id: 'exercices', label: 'Exercices', icon: TargetIcon },
+  { id: 'outils', label: 'Outils', icon: MixerHorizontalIcon, href: 'calculateur' },
+  { id: 'apprendre', label: 'Leçons', icon: ReaderIcon },
+  { id: 'stats', label: 'Stats', icon: BarChartIcon },
 ];
 
 function readRoute(): string {
@@ -71,42 +79,43 @@ export function App() {
         <div className="topbar__inner">
           <a href="#accueil" className="brand">
             <span className="brand__mark" aria-hidden="true">
-              <Icon name="spade" size={16} />
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3c3 4 7 6 7 10a4 4 0 0 1-6.5 3.1L13.5 21h-3l1-4.9A4 4 0 0 1 5 13c0-4 4-6 7-10z" />
+              </svg>
             </span>
-            <span className="brand__name">
-              Coach <em>Hold’em</em>
-            </span>
+            <span className="brand__name">Coach Hold’em</span>
           </a>
-          <nav className="topnav" aria-label="Navigation principale">
+          <TabNav.Root className="topnav" aria-label="Navigation principale">
             {NAV.map((n) => (
-              <a
-                key={n.id}
-                href={`#${n.href ?? n.id}`}
-                className={`topnav__link ${nav === n.id ? 'topnav__link--on' : ''}`}
-                aria-current={nav === n.id ? 'page' : undefined}
-              >
-                <Icon name={n.icon} size={18} />
-                <span>{n.label}</span>
-              </a>
+              <TabNav.Link key={n.id} href={`#${n.href ?? n.id}`} active={nav === n.id}>
+                <span className="topnav__item">
+                  <n.icon aria-hidden="true" />
+                  {n.label}
+                </span>
+              </TabNav.Link>
             ))}
-          </nav>
-          {session.game && nav !== 'jouer' && (
-            <a href="#jouer" className="topbar__live">
-              <span className="live-dot" aria-hidden="true" /> Table en cours · main {session.game.handNumber}
+          </TabNav.Root>
+          {session.game && (
+            <a href="#jouer" className="topbar__session">
+              <Badge size="2" color={session.netBB >= 0 ? 'grass' : 'tomato'} variant="soft">
+                {nav === 'jouer' ? 'Session' : `Table en cours · main ${session.game.handNumber} ·`}{' '}
+                {session.netBB > 0 ? '+' : session.netBB < 0 ? '−' : ''}
+                {Math.abs(session.netBB).toLocaleString('fr-FR')} BB
+              </Badge>
             </a>
           )}
         </div>
       </header>
       <main className="content">
         {nav === 'outils' && (
-          <div className="subnav" role="tablist" aria-label="Outils">
-            <a href="#calculateur" role="tab" aria-selected={route === 'calculateur'} className={route === 'calculateur' ? 'on' : ''}>
+          <TabNav.Root className="subnav" aria-label="Outils">
+            <TabNav.Link href="#calculateur" active={route === 'calculateur'}>
               Calculateur d’équité
-            </a>
-            <a href="#ranges" role="tab" aria-selected={route === 'ranges'} className={route === 'ranges' ? 'on' : ''}>
+            </TabNav.Link>
+            <TabNav.Link href="#ranges" active={route === 'ranges'}>
               Tableaux de ranges
-            </a>
-          </div>
+            </TabNav.Link>
+          </TabNav.Root>
         )}
         <View key={route} />
       </main>

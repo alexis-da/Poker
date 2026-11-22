@@ -1,3 +1,4 @@
+import { Button, Text } from '@radix-ui/themes';
 import { CardRow } from '../../components/PlayingCard';
 import { categoryOf, describeScoreLong } from '../../engine/evaluator';
 import { generateWinner, type WinnerQuestion } from '../../trainers/generators';
@@ -23,10 +24,10 @@ export function WinnerQuiz() {
 
   return (
     <QuizShell meta={meta} answered={answered} onNext={next}>
-      <div className="quiz-card felt-card felt-card--wide">
-        <p className="eyebrow eyebrow--felt">Board</p>
+      <div className="felt-card felt-card--wide">
+        <span className="felt-label">Board</span>
         <CardRow cards={q.board} size="md" highlight={answered ? top.best : undefined} />
-        <div className={`showdown-grid showdown-grid--${q.players.length}`}>
+        <div className="showdown-grid">
           {q.players.map((p, i) => {
             const isWinner = q.winners.includes(i);
             return (
@@ -39,23 +40,25 @@ export function WinnerQuiz() {
                 onClick={() => submit(i)}
                 disabled={answered}
               >
-                <span className="showdown-hand__name">{p.name}</span>
+                <Text size="2" weight="bold">
+                  {p.name}
+                </Text>
                 <CardRow cards={p.hole} size="md" highlight={answered ? p.best : undefined} />
-                {answered && <span className="showdown-hand__desc">{describeScoreLong(p.score)}</span>}
+                {answered && <Text size="2">{describeScoreLong(p.score)}</Text>}
               </button>
             );
           })}
         </div>
-        <div className="answer-row">
-          <button
-            type="button"
-            className={`btn btn--choice ${answered && split ? 'btn--right' : ''} ${answered && answer === 'split' && !split ? 'btn--wrong' : ''}`}
-            onClick={() => submit('split')}
-            disabled={answered}
-          >
-            Partage du pot
-          </button>
-        </div>
+        <Button
+          size="3"
+          variant={answered && (split || answer === 'split') ? 'solid' : 'soft'}
+          color={answered && split ? 'grass' : answered && answer === 'split' ? 'tomato' : 'gray'}
+          highContrast={!answered}
+          onClick={() => submit('split')}
+          disabled={answered && !split && answer !== 'split'}
+        >
+          Partage du pot
+        </Button>
       </div>
       {answered && (
         <Feedback
@@ -66,16 +69,20 @@ export function WinnerQuiz() {
               : `${top.name} gagne avec ${top.handName}.`
           }
         >
-          <p>
-            Chaque joueur garde les cinq meilleures cartes parmi les sept disponibles (ses deux cartes et les cinq du board) ; elles
-            sont mises en évidence ci-dessus.
-          </p>
+          <Text as="p" size="2">
+            Chaque joueur garde les cinq meilleures cartes parmi les sept disponibles (ses deux cartes et les cinq du board) ; elles sont
+            mises en évidence ci-dessus.
+          </Text>
           {sameCat && !split && (
-            <p>
+            <Text as="p" size="2">
               Même catégorie de main : on compare d’abord le rang de la combinaison, puis les cartes restantes (kickers), une par une.
-            </p>
+            </Text>
           )}
-          {split && <p>Quand les cinq meilleures cartes sont identiques en rang, le pot est partagé : les couleurs ne départagent jamais.</p>}
+          {split && (
+            <Text as="p" size="2">
+              Quand les cinq meilleures cartes sont identiques en rang, le pot est partagé : les couleurs ne départagent jamais.
+            </Text>
+          )}
         </Feedback>
       )}
     </QuizShell>

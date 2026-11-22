@@ -1,16 +1,29 @@
+import { ExitIcon } from '@radix-ui/react-icons';
+import {
+  Badge,
+  Button,
+  Card,
+  Flex,
+  Heading,
+  Kbd,
+  RadioCards,
+  SegmentedControl,
+  Select,
+  Switch,
+  Text,
+} from '@radix-ui/themes';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BOT_PROFILES, decideBot, PROFILE_BY_ID } from '../../engine/bot';
 import { getAdvice, gradeDecision } from '../../engine/coach';
-import { describeScore, evaluate } from '../../engine/evaluator';
-import { handClassOf } from '../../engine/ranges';
-import { formatBB, getLegalActions, type Action } from '../../engine/game';
+import { getLegalActions, type Action } from '../../engine/game';
 import { useSettings } from '../../store/store';
 import { ActionBar } from './ActionBar';
 import { CoachPanel } from './CoachPanel';
 import { botAct, heroAct, leaveTable, newTable, nextHand, rebuy, useSession } from './session';
-import { Table } from './Table';
+import { PROFILE_COLOR, Table } from './Table';
 
 const SPEED_MS = { lent: 1500, normal: 850, rapide: 320 };
+const STREET_FR = { preflop: 'Préflop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Abattage' } as const;
 
 function Setup() {
   const [settings, setSettings] = useSettings();
@@ -18,12 +31,14 @@ function Setup() {
   return (
     <div className="page">
       <header className="page-head">
-        <p className="eyebrow">Table 6-max · No-Limit Hold’em · blinds 0,5 / 1 BB</p>
-        <h1>Jouer une session</h1>
-        <p className="lede">
-          Affrontez des bots au style marqué. Le coach analyse chacune de vos décisions : équité, cotes du pot, outs et
-          ranges préflop.
-        </p>
+        <Text size="2" color="gray">
+          Table 6-max · No-Limit Hold’em · blinds 0,5 / 1 BB
+        </Text>
+        <Heading size="8">Jouer une session</Heading>
+        <Text as="p" size="3" color="gray" className="lede">
+          Affrontez des bots au style marqué. Le coach analyse chacune de vos décisions : équité, cotes du pot, outs et ranges
+          préflop.
+        </Text>
       </header>
       <form
         className="setup"
@@ -33,88 +48,94 @@ function Setup() {
           window.scrollTo({ top: 0 });
         }}
       >
-        <fieldset className="setup__group">
-          <legend>Adversaires</legend>
-          <div className="segmented" role="radiogroup" aria-label="Nombre d’adversaires">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                type="button"
-                key={n}
-                role="radio"
-                aria-checked={settings.opponents === n}
-                className={settings.opponents === n ? 'on' : ''}
-                onClick={() => setSettings({ opponents: n })}
+        <Card size="3">
+          <Flex direction="column" gap="5">
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium">
+                Adversaires
+              </Text>
+              <SegmentedControl.Root
+                size="2"
+                value={String(settings.opponents)}
+                onValueChange={(v) => setSettings({ opponents: Number(v) })}
+                aria-label="Nombre d’adversaires"
               >
-                {n === 1 ? '1 (tête-à-tête)' : n}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="setup__group">
-          <legend>Tapis de départ</legend>
-          <div className="segmented" role="radiogroup" aria-label="Tapis de départ">
-            {[40, 100, 200].map((n) => (
-              <button
-                type="button"
-                key={n}
-                role="radio"
-                aria-checked={settings.startingBB === n}
-                className={settings.startingBB === n ? 'on' : ''}
-                onClick={() => setSettings({ startingBB: n })}
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <SegmentedControl.Item key={n} value={String(n)}>
+                    {n === 1 ? '1 · tête-à-tête' : n}
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>
+            </Flex>
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium">
+                Tapis de départ
+              </Text>
+              <SegmentedControl.Root
+                size="2"
+                value={String(settings.startingBB)}
+                onValueChange={(v) => setSettings({ startingBB: Number(v) })}
+                aria-label="Tapis de départ"
               >
-                {n} BB
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="setup__group">
-          <legend>Style des bots</legend>
-          <div className="profile-pick">
-            <button type="button" className={`profile-card ${profiles === 'mix' ? 'on' : ''}`} onClick={() => setProfiles('mix')}>
-              <strong>Mélange</strong>
-              <span>Un profil au hasard par siège, comme à une vraie table.</span>
-            </button>
-            {BOT_PROFILES.map((p) => (
-              <button
-                type="button"
-                key={p.id}
-                className={`profile-card ${profiles === p.id ? 'on' : ''}`}
-                onClick={() => setProfiles(p.id)}
+                {[40, 100, 200].map((n) => (
+                  <SegmentedControl.Item key={n} value={String(n)}>
+                    {n} BB
+                  </SegmentedControl.Item>
+                ))}
+              </SegmentedControl.Root>
+            </Flex>
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium">
+                Style des bots
+              </Text>
+              <RadioCards.Root value={profiles} onValueChange={setProfiles} columns={{ initial: '1', sm: '2', md: '3' }} aria-label="Style des bots">
+                <RadioCards.Item value="mix">
+                  <Flex direction="column" width="100%" gap="1">
+                    <Text weight="bold">Mélange</Text>
+                    <Text size="2" color="gray">
+                      Un profil au hasard par siège, comme à une vraie table.
+                    </Text>
+                  </Flex>
+                </RadioCards.Item>
+                {BOT_PROFILES.map((p) => (
+                  <RadioCards.Item key={p.id} value={p.id}>
+                    <Flex direction="column" width="100%" gap="1">
+                      <Flex gap="2" align="center" wrap="wrap">
+                        <Text weight="bold">{p.label}</Text>
+                        <Badge color={PROFILE_COLOR[p.id]} variant="soft">
+                          {p.style}
+                        </Badge>
+                      </Flex>
+                      <Text size="2" color="gray">
+                        {p.description}
+                      </Text>
+                    </Flex>
+                  </RadioCards.Item>
+                ))}
+              </RadioCards.Root>
+            </Flex>
+            <Flex direction="column" gap="2">
+              <Text size="2" weight="medium">
+                Coach
+              </Text>
+              <SegmentedControl.Root
+                size="2"
+                value={settings.coachMode}
+                onValueChange={(v) => setSettings({ coachMode: v as typeof settings.coachMode })}
+                aria-label="Mode du coach"
               >
-                <strong>
-                  {p.label} <em>{p.style}</em>
-                </strong>
-                <span>{p.description}</span>
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <fieldset className="setup__group">
-          <legend>Coach</legend>
-          <div className="segmented" role="radiogroup" aria-label="Mode du coach">
-            {(
-              [
-                ['visible', 'Conseils visibles'],
-                ['apres', 'Correction après coup'],
-                ['off', 'Désactivé'],
-              ] as const
-            ).map(([v, l]) => (
-              <button
-                type="button"
-                key={v}
-                role="radio"
-                aria-checked={settings.coachMode === v}
-                className={settings.coachMode === v ? 'on' : ''}
-                onClick={() => setSettings({ coachMode: v })}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-        <button type="submit" className="btn btn--primary btn--lg">
-          S’asseoir à la table
-        </button>
+                <SegmentedControl.Item value="visible">Conseils visibles</SegmentedControl.Item>
+                <SegmentedControl.Item value="apres">Correction après coup</SegmentedControl.Item>
+                <SegmentedControl.Item value="off">Désactivé</SegmentedControl.Item>
+              </SegmentedControl.Root>
+            </Flex>
+            <div>
+              <Button size="4" type="submit">
+                S’asseoir à la table
+              </Button>
+            </div>
+          </Flex>
+        </Card>
       </form>
     </div>
   );
@@ -123,43 +144,52 @@ function Setup() {
 function TableSettings() {
   const [settings, setSettings] = useSettings();
   return (
-    <div className="table-settings">
-      <label>
-        Coach
-        <select
-          id="coach-mode"
-          value={settings.coachMode}
-          onChange={(e) => setSettings({ coachMode: e.target.value as typeof settings.coachMode })}
-        >
-          <option value="visible">Conseils visibles</option>
-          <option value="apres">Correction après coup</option>
-          <option value="off">Désactivé</option>
-        </select>
-      </label>
-      <label>
-        Vitesse des bots
-        <select id="bot-speed" value={settings.botSpeed} onChange={(e) => setSettings({ botSpeed: e.target.value as typeof settings.botSpeed })}>
-          <option value="lent">Lente</option>
-          <option value="normal">Normale</option>
-          <option value="rapide">Rapide</option>
-        </select>
-      </label>
-      <label>
-        Cartes
-        <select id="card-style" value={settings.cardStyle} onChange={(e) => setSettings({ cardStyle: e.target.value as typeof settings.cardStyle })}>
-          <option value="lisible">Gros index</option>
-          <option value="illustre">Illustrées</option>
-        </select>
-      </label>
-      <label className="check">
-        <input id="four-color" type="checkbox" checked={settings.fourColor} onChange={(e) => setSettings({ fourColor: e.target.checked })} />
-        Jeu 4 couleurs (cartes à gros index)
-      </label>
-      <label className="check">
-        <input id="auto-next" type="checkbox" checked={settings.autoNext} onChange={(e) => setSettings({ autoNext: e.target.checked })} />
-        Main suivante automatique
-      </label>
-    </div>
+    <Flex direction="column" gap="3">
+      <Flex justify="between" align="center" gap="3">
+        <Text size="2">Coach</Text>
+        <Select.Root value={settings.coachMode} onValueChange={(v) => setSettings({ coachMode: v as typeof settings.coachMode })}>
+          <Select.Trigger aria-label="Mode du coach" />
+          <Select.Content>
+            <Select.Item value="visible">Conseils visibles</Select.Item>
+            <Select.Item value="apres">Correction après coup</Select.Item>
+            <Select.Item value="off">Désactivé</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+      <Flex justify="between" align="center" gap="3">
+        <Text size="2">Vitesse des bots</Text>
+        <Select.Root value={settings.botSpeed} onValueChange={(v) => setSettings({ botSpeed: v as typeof settings.botSpeed })}>
+          <Select.Trigger aria-label="Vitesse des bots" />
+          <Select.Content>
+            <Select.Item value="lent">Lente</Select.Item>
+            <Select.Item value="normal">Normale</Select.Item>
+            <Select.Item value="rapide">Rapide</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+      <Flex justify="between" align="center" gap="3">
+        <Text size="2">Cartes</Text>
+        <Select.Root value={settings.cardStyle} onValueChange={(v) => setSettings({ cardStyle: v as typeof settings.cardStyle })}>
+          <Select.Trigger aria-label="Style de cartes" />
+          <Select.Content>
+            <Select.Item value="lisible">Gros index</Select.Item>
+            <Select.Item value="illustre">Illustrées</Select.Item>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+      <Text as="label" size="2">
+        <Flex justify="between" align="center" gap="3">
+          Jeu 4 couleurs
+          <Switch id="four-color" checked={settings.fourColor} onCheckedChange={(v) => setSettings({ fourColor: v })} />
+        </Flex>
+      </Text>
+      <Text as="label" size="2">
+        <Flex justify="between" align="center" gap="3">
+          Main suivante automatique
+          <Switch id="auto-next" checked={settings.autoNext} onCheckedChange={(v) => setSettings({ autoNext: v })} />
+        </Flex>
+      </Text>
+    </Flex>
   );
 }
 
@@ -223,93 +253,91 @@ export function Play() {
   if (!game) return <Setup />;
 
   const hero = game.players[heroIndex];
-  const heroHand =
-    hero.hole.length === 2 && game.board.length >= 3 ? describeScore(evaluate([...hero.hole, ...game.board])) : null;
-
   const onHeroAction = (action: Action, label: string) => {
     const grade = advice && settings.coachMode !== 'off' ? gradeDecision(advice, action) : null;
     heroAct(action, grade, label);
   };
-
   const opponents = game.players.filter((p) => !p.isHuman);
+  const street = STREET_FR[game.street];
+  const title = game.result
+    ? 'Main terminée'
+    : heroTurn
+      ? `${street}, à vous de parler`
+      : hero.folded
+        ? `${street} · vous êtes couché`
+        : street;
 
   return (
     <div className="play">
       <div className="play__main">
         <div className="play__bar">
-          <div className="play__meta">
-            <span>Main n° {game.handNumber}</span>
-            <span className={session.netBB >= 0 ? 'pos' : 'neg'}>
-              Session {session.netBB >= 0 ? '+' : '−'}
-              {Math.abs(session.netBB).toLocaleString('fr-FR')} BB
-            </span>
+          <div>
+            <Text size="2" color="gray">
+              Main n° {game.handNumber} · blinds 0,5 / 1 BB · {game.players.filter((p) => !p.sittingOut).length} joueurs
+            </Text>
+            <Heading size="6" className="play__title">
+              {title}
+            </Heading>
           </div>
           {confirmLeave ? (
-            <div className="inline-confirm">
-              <span>Quitter la table ?</span>
-              <button
-                type="button"
-                className="btn btn--small btn--danger"
+            <Flex gap="2" align="center" wrap="wrap">
+              <Text size="2">Quitter la table ?</Text>
+              <Button
+                size="2"
+                color="tomato"
                 onClick={() => {
                   setConfirmLeave(false);
                   leaveTable();
                 }}
               >
                 Quitter
-              </button>
-              <button type="button" className="btn btn--small btn--ghost" onClick={() => setConfirmLeave(false)}>
+              </Button>
+              <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(false)}>
                 Rester
-              </button>
-            </div>
+              </Button>
+            </Flex>
           ) : (
-            <button type="button" className="btn btn--small btn--ghost" onClick={() => setConfirmLeave(true)}>
-              Quitter la table
-            </button>
+            <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(true)} aria-label="Quitter la table">
+              <ExitIcon /> <span className="hide-phone">Quitter la table</span>
+            </Button>
           )}
         </div>
 
         <Table game={game} thinking={thinking} thinkMs={thinkMs} />
 
         <div className="console">
-        <div className="hero-strip">
-          <span className="hero-strip__pos">{game.positions[heroIndex] ?? '—'}</span>
-          <div className="hero-strip__hand">
-            <span className="hero-strip__label">{hero.folded ? 'Couché' : game.board.length ? 'Votre main' : 'Préflop'}</span>
-            <strong>{hero.folded ? '—' : (heroHand ?? handClassOf(hero.hole[0], hero.hole[1]))}</strong>
-          </div>
-          <div className="hero-strip__stack">
-            <span className="hero-strip__label">Tapis</span>
-            <strong>{formatBB(hero.stack, game.bigBlind)}</strong>
-          </div>
-        </div>
-
-        {heroTurn && legal ? (
-          <ActionBar
-            game={game}
-            legal={legal}
-            advice={settings.coachMode === 'visible' ? advice : null}
-            showHint={settings.coachMode === 'visible'}
-            onAction={onHeroAction}
-          />
-        ) : game.result ? (
-          <div className="action-bar action-bar--result">
-            {session.notice && <p className="notice">{session.notice}</p>}
-            {heroBroke ? (
-              <button type="button" className="btn btn--primary btn--lg" onClick={rebuy}>
-                Recaver {session.config.startingBB} BB
-              </button>
-            ) : (
-              <button type="button" id="next-hand" className="btn btn--primary btn--lg" onClick={nextHand}>
-                Main suivante <kbd>Espace</kbd>
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="action-bar action-bar--wait">
-            {thinking !== null ? `${game.players[thinking].name} réfléchit…` : 'Distribution…'}
-            {hero.folded && <span className="muted"> · vous êtes couché, la main continue</span>}
-          </div>
-        )}
+          {heroTurn && legal ? (
+            <ActionBar
+              game={game}
+              legal={legal}
+              advice={settings.coachMode === 'visible' ? advice : null}
+              showHint={settings.coachMode === 'visible'}
+              onAction={onHeroAction}
+            />
+          ) : game.result ? (
+            <Card size="3" className="action-bar action-bar--result">
+              {session.notice && (
+                <Text as="p" size="2" color="amber">
+                  {session.notice}
+                </Text>
+              )}
+              {heroBroke ? (
+                <Button size="4" onClick={rebuy}>
+                  Recaver {session.config.startingBB} BB
+                </Button>
+              ) : (
+                <Button size="4" id="next-hand" onClick={nextHand}>
+                  Main suivante <Kbd>Espace</Kbd>
+                </Button>
+              )}
+            </Card>
+          ) : (
+            <Card size="3" className="action-bar action-bar--wait">
+              <Text size="2" color="gray">
+                {thinking !== null ? `${game.players[thinking].name} réfléchit…` : 'Distribution…'}
+              </Text>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -321,8 +349,10 @@ export function Play() {
           heroTurn={heroTurn}
           bigBlind={game.bigBlind}
         />
-        <section className="panel">
-          <h2 className="panel__title">Historique de la main</h2>
+        <Card size="3">
+          <Text as="p" size="2" weight="bold" mb="3">
+            Historique de la main
+          </Text>
           <ol className="hand-log" ref={logRef}>
             {game.log.map((l, i) => (
               <li key={i} className={`log--${l.kind}`}>
@@ -330,30 +360,43 @@ export function Play() {
               </li>
             ))}
           </ol>
-        </section>
-        <section className="panel">
-          <h2 className="panel__title">Adversaires</h2>
-          <ul className="opponents">
+        </Card>
+        <Card size="3">
+          <Text as="p" size="2" weight="bold" mb="3">
+            Adversaires
+          </Text>
+          <Flex direction="column" gap="2">
             {opponents.map((p) => {
               const prof = p.profile ? PROFILE_BY_ID[p.profile] : null;
               return (
-                <li key={p.id}>
-                  <strong>{p.name}</strong> <span className="tag">{prof?.label}</span>
-                  <span className="muted"> {prof?.style}</span>
-                </li>
+                <Flex key={p.id} justify="between" align="center" gap="2">
+                  <Text size="2" weight="medium">
+                    {p.name}
+                  </Text>
+                  {prof && (
+                    <Badge color={PROFILE_COLOR[prof.id]} variant="soft">
+                      {prof.label} · {prof.style}
+                    </Badge>
+                  )}
+                </Flex>
               );
             })}
-          </ul>
-          <p className="fineprint">
+          </Flex>
+          <Text as="p" size="1" color="gray" mt="3">
             Session : {session.hands} main{session.hands > 1 ? 's' : ''} · coach {session.coach.bon} bon, {session.coach.discutable}{' '}
             discutable, {session.coach.erreur} erreur{session.coach.erreur > 1 ? 's' : ''}
-          </p>
-        </section>
-        <section className="panel">
-          <h2 className="panel__title">Réglages</h2>
+          </Text>
+        </Card>
+        <Card size="3">
+          <Text as="p" size="2" weight="bold" mb="3">
+            Réglages
+          </Text>
           <TableSettings />
-          <p className="fineprint">Raccourcis : F se coucher · C checker / suivre · R relancer · Espace main suivante.</p>
-        </section>
+          <Text as="p" size="1" color="gray" mt="3">
+            Raccourcis : <Kbd>F</Kbd> se coucher · <Kbd>C</Kbd> checker / suivre · <Kbd>R</Kbd> relancer · <Kbd>Espace</Kbd> main
+            suivante.
+          </Text>
+        </Card>
       </aside>
     </div>
   );

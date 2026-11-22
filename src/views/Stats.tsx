@@ -1,12 +1,20 @@
+import { Button, Card, Flex, Heading, Link, Table, Text } from '@radix-ui/themes';
 import { useState } from 'react';
+import Counter from '../components/reactbits/Counter';
 import { resetStats, useAppData } from '../store/store';
 import { QUIZZES } from './training/QuizShell';
 
-const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)} %` : '—');
+const pctNum = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
 
 function Curve({ points }: { points: number[] }) {
   if (points.length < 2) {
-    return <p className="muted chart-empty">La courbe de gains apparaîtra après quelques mains jouées.</p>;
+    return (
+      <Card size="3" className="chart-empty">
+        <Text size="2" color="gray">
+          La courbe de gains apparaîtra après quelques mains jouées.
+        </Text>
+      </Card>
+    );
   }
   const data = [0, ...points];
   const w = 640;
@@ -22,7 +30,7 @@ function Curve({ points }: { points: number[] }) {
   const last = data[data.length - 1];
   const ticks = [min, 0, max].filter((v, i, arr) => arr.indexOf(v) === i);
   return (
-    <div className="chart">
+    <Card size="3" className="chart">
       <svg viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Gains cumulés : ${last} BB sur ${points.length} mains`}>
         {ticks.map((t) => (
           <g key={t}>
@@ -39,7 +47,7 @@ function Curve({ points }: { points: number[] }) {
           {points.length} mains
         </text>
       </svg>
-    </div>
+    </Card>
   );
 }
 
@@ -47,50 +55,68 @@ export function Stats() {
   const { play, quizzes } = useAppData();
   const [confirm, setConfirm] = useState<'play' | 'quizzes' | null>(null);
   const coachTotal = play.coach.bon + play.coach.discutable + play.coach.erreur;
-  const bb100 = play.hands ? (play.netBB / play.hands) * 100 : 0;
-  const tiles = [
-    { label: 'Mains jouées', value: play.hands.toLocaleString('fr-FR') },
-    {
-      label: 'Gain net',
-      value: `${play.netBB > 0 ? '+' : ''}${play.netBB.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} BB`,
-      tone: play.netBB >= 0 ? 'pos' : 'neg',
-    },
-    { label: 'BB / 100 mains', value: play.hands ? bb100.toLocaleString('fr-FR', { maximumFractionDigits: 1 }) : '—' },
-    { label: 'VPIP', value: pct(play.vpip, play.hands), hint: 'Mains jouées volontairement. Repère 6-max : 22 à 28 %.' },
-    { label: 'PFR', value: pct(play.pfr, play.hands), hint: 'Mains relancées préflop. Repère : 17 à 23 %.' },
-    { label: 'Flops vus', value: pct(play.sawFlop, play.hands) },
-    { label: 'Abattages gagnés', value: pct(play.showdownsWon, play.showdowns), hint: `${play.showdowns} abattages` },
-    { label: 'Plus gros pot', value: `${play.biggestPotBB.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} BB` },
+  const bb100 = play.hands ? (play.netBB / play.hands) * 100 : null;
+  const tiles: { label: string; value: number | null; suffix: string; decimals: number; hint?: string; tone?: string }[] = [
+    { label: 'Mains jouées', value: play.hands, suffix: '', decimals: 0 },
+    { label: 'Gain net', value: play.netBB, suffix: ' BB', decimals: 1, tone: play.netBB >= 0 ? 'pos' : 'neg' },
+    { label: 'BB / 100 mains', value: bb100 === null ? null : Math.round(bb100 * 10) / 10, suffix: '', decimals: 1 },
+    { label: 'VPIP', value: pctNum(play.vpip, play.hands), suffix: ' %', decimals: 0, hint: 'Mains jouées volontairement. Repère 6-max : 22 à 28 %.' },
+    { label: 'PFR', value: pctNum(play.pfr, play.hands), suffix: ' %', decimals: 0, hint: 'Mains relancées préflop. Repère : 17 à 23 %.' },
+    { label: 'Flops vus', value: pctNum(play.sawFlop, play.hands), suffix: ' %', decimals: 0 },
+    { label: 'Abattages gagnés', value: pctNum(play.showdownsWon, play.showdowns), suffix: ' %', decimals: 0, hint: `${play.showdowns} abattages` },
+    { label: 'Plus gros pot', value: play.biggestPotBB, suffix: ' BB', decimals: 1 },
   ];
 
   return (
     <div className="page">
       <header className="page-head">
-        <p className="eyebrow">Enregistrées sur cet appareil</p>
-        <h1>Statistiques</h1>
-        <p className="lede">Vos résultats aux tables et dans les exercices, pour savoir quoi travailler ensuite.</p>
+        <Text size="2" color="gray">
+          Enregistrées sur cet appareil
+        </Text>
+        <Heading size="8">Statistiques</Heading>
+        <Text as="p" size="3" color="gray" className="lede">
+          Vos résultats aux tables et dans les exercices, pour savoir quoi travailler ensuite.
+        </Text>
       </header>
 
       <section className="section">
-        <h2>Aux tables</h2>
+        <Heading size="5" as="h2">
+          Aux tables
+        </Heading>
         <div className="tiles">
           {tiles.map((t) => (
-            <div key={t.label} className="tile">
-              <span className="tile__label">{t.label}</span>
-              <span className={`tile__value ${t.tone ?? ''}`}>{t.value}</span>
-              {t.hint && <span className="tile__hint">{t.hint}</span>}
-            </div>
+            <Card key={t.label} size="3" className="tile">
+              <Text size="2" color="gray">
+                {t.label}
+              </Text>
+              <span className={`tile__value ${t.tone ?? ''}`}>
+                {t.value === null ? (
+                  '—'
+                ) : (
+                  <Counter value={t.value} decimals={Number.isInteger(t.value) ? 0 : t.decimals} locale="fr-FR" fontSize={32} fontWeight={600} suffix={t.suffix} />
+                )}
+              </span>
+              {t.hint && (
+                <Text size="1" color="gray">
+                  {t.hint}
+                </Text>
+              )}
+            </Card>
           ))}
         </div>
         <Curve points={play.curve} />
       </section>
 
       <section className="section">
-        <h2>Décisions jugées par le coach</h2>
+        <Heading size="5" as="h2">
+          Décisions jugées par le coach
+        </Heading>
         {coachTotal === 0 ? (
-          <p className="muted">Jouez quelques mains avec le coach activé pour voir la qualité de vos décisions.</p>
+          <Text size="2" color="gray">
+            Jouez quelques mains avec le coach activé pour voir la qualité de vos décisions.
+          </Text>
         ) : (
-          <>
+          <Card size="3">
             <div className="stack-bar" role="img" aria-label="Répartition des décisions">
               {(['bon', 'discutable', 'erreur'] as const).map((k) =>
                 play.coach[k] ? (
@@ -100,88 +126,92 @@ export function Stats() {
                 ) : null,
               )}
             </div>
-            <ul className="legend">
-              <li>
+            <Flex gap="5" wrap="wrap" mt="3">
+              <Text size="2">
                 <span className="swatch swatch--bon" /> Bonnes : {play.coach.bon}
-              </li>
-              <li>
+              </Text>
+              <Text size="2">
                 <span className="swatch swatch--discutable" /> Discutables : {play.coach.discutable}
-              </li>
-              <li>
+              </Text>
+              <Text size="2">
                 <span className="swatch swatch--erreur" /> Erreurs : {play.coach.erreur}
-              </li>
-            </ul>
-          </>
+              </Text>
+            </Flex>
+          </Card>
         )}
       </section>
 
       <section className="section">
-        <h2>Exercices</h2>
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Exercice</th>
-                <th>Réponses</th>
-                <th>Réussite</th>
-                <th>Record de série</th>
-                <th>20 dernières</th>
-              </tr>
-            </thead>
-            <tbody>
+        <Heading size="5" as="h2">
+          Exercices
+        </Heading>
+        <Card size="1" className="table-card">
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.ColumnHeaderCell>Exercice</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>Réponses</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>Réussite</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>Record de série</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell>20 dernières</Table.ColumnHeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
               {QUIZZES.map((q) => {
                 const s = quizzes[q.id];
+                const p = pctNum(s.correct, s.attempts);
                 return (
-                  <tr key={q.id}>
-                    <td>
-                      <a href={`#${q.route}`}>{q.title}</a>
-                    </td>
-                    <td>{s.attempts}</td>
-                    <td>{pct(s.correct, s.attempts)}</td>
-                    <td>{s.bestStreak}</td>
-                    <td>
+                  <Table.Row key={q.id}>
+                    <Table.RowHeaderCell>
+                      <Link href={`#${q.route}`}>{q.title}</Link>
+                    </Table.RowHeaderCell>
+                    <Table.Cell>{s.attempts}</Table.Cell>
+                    <Table.Cell>{p === null ? '—' : `${p} %`}</Table.Cell>
+                    <Table.Cell>{s.bestStreak}</Table.Cell>
+                    <Table.Cell>
                       <span className="dots">
                         {s.recent.slice(-20).map((ok, i) => (
                           <span key={i} className={ok ? 'dot dot--ok' : 'dot dot--ko'} />
                         ))}
                       </span>
-                    </td>
-                  </tr>
+                    </Table.Cell>
+                  </Table.Row>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </Table.Body>
+          </Table.Root>
+        </Card>
       </section>
 
       <section className="section">
-        <h2>Réinitialiser</h2>
+        <Heading size="5" as="h2">
+          Réinitialiser
+        </Heading>
         {confirm ? (
-          <div className="inline-confirm">
-            <span>Effacer définitivement les statistiques {confirm === 'play' ? 'de jeu' : 'des exercices'} ?</span>
-            <button
-              type="button"
-              className="btn btn--small btn--danger"
+          <Flex gap="2" align="center" wrap="wrap">
+            <Text size="2">Effacer définitivement les statistiques {confirm === 'play' ? 'de jeu' : 'des exercices'} ?</Text>
+            <Button
+              color="tomato"
               onClick={() => {
                 resetStats(confirm);
                 setConfirm(null);
               }}
             >
               Effacer
-            </button>
-            <button type="button" className="btn btn--small btn--ghost" onClick={() => setConfirm(null)}>
+            </Button>
+            <Button variant="soft" color="gray" onClick={() => setConfirm(null)}>
               Annuler
-            </button>
-          </div>
+            </Button>
+          </Flex>
         ) : (
-          <div className="button-row">
-            <button type="button" className="btn btn--ghost" onClick={() => setConfirm('play')}>
+          <Flex gap="3" wrap="wrap">
+            <Button variant="soft" color="gray" onClick={() => setConfirm('play')}>
               Effacer les stats de jeu
-            </button>
-            <button type="button" className="btn btn--ghost" onClick={() => setConfirm('quizzes')}>
+            </Button>
+            <Button variant="soft" color="gray" onClick={() => setConfirm('quizzes')}>
               Effacer les stats d’exercices
-            </button>
-          </div>
+            </Button>
+          </Flex>
         )}
       </section>
     </div>

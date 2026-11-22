@@ -1,5 +1,5 @@
+import { Badge, Button, Card, Flex, Heading, Kbd, Link, Text } from '@radix-ui/themes';
 import { useEffect, useState, type ReactNode } from 'react';
-import { ChipFace } from '../../components/Chips';
 import { recordQuiz, useAppData, type QuizId } from '../../store/store';
 
 export interface QuizMeta {
@@ -85,41 +85,51 @@ export function QuizShell({ meta, answered, onNext, children, toolbar }: ShellPr
   return (
     <div className="page quiz">
       <header className="page-head page-head--row">
-        <div>
-          <p className="eyebrow">
-            <a href="#exercices">Exercices</a> · {meta.skill}
-          </p>
-          <h1>{meta.title}</h1>
-          <p className="lede">{meta.description}</p>
+        <div className="page-head__text">
+          <Text size="2" color="gray">
+            <Link href="#exercices">Exercices</Link> · {meta.skill}
+          </Text>
+          <Heading size="8">{meta.title}</Heading>
+          <Text as="p" size="3" color="gray">
+            {meta.description}
+          </Text>
         </div>
-        <dl className="quiz-score">
+        <Card size="2" className="quiz-score">
           <div>
-            <dt>Réussite</dt>
-            <dd>{acc === null ? '—' : `${acc} %`}</dd>
-          </div>
-          <div>
-            <dt>Série</dt>
-            <dd>{stats.streak}</dd>
+            <Text size="1" color="gray">
+              Réussite
+            </Text>
+            <strong>{acc === null ? '—' : `${acc} %`}</strong>
           </div>
           <div>
-            <dt>Record</dt>
-            <dd>{stats.bestStreak}</dd>
+            <Text size="1" color="gray">
+              Série
+            </Text>
+            <strong>{stats.streak}</strong>
           </div>
-          <div className="quiz-score__dots" aria-label="20 dernières réponses">
-            {recent.map((ok, i) => (
-              <span key={i} className={ok ? 'dot dot--ok' : 'dot dot--ko'} />
-            ))}
+          <div>
+            <Text size="1" color="gray">
+              Record
+            </Text>
+            <strong>{stats.bestStreak}</strong>
           </div>
-        </dl>
+          {recent.length > 0 && (
+            <span className="dots" aria-label="20 dernières réponses">
+              {recent.map((ok, i) => (
+                <span key={i} className={ok ? 'dot dot--ok' : 'dot dot--ko'} />
+              ))}
+            </span>
+          )}
+        </Card>
       </header>
       {toolbar}
       <div className="quiz__body">{children}</div>
       {answered && (
-        <div className="quiz__next">
-          <button type="button" id="quiz-next" className="btn btn--primary btn--lg" onClick={onNext} autoFocus>
-            Question suivante <kbd>Entrée</kbd>
-          </button>
-        </div>
+        <Flex justify="center">
+          <Button id="quiz-next" size="4" onClick={onNext} autoFocus>
+            Question suivante <Kbd>Entrée</Kbd>
+          </Button>
+        </Flex>
       )}
     </div>
   );
@@ -145,35 +155,63 @@ export function useQuiz<Q, A>(id: QuizId, generate: () => Q, isCorrect: (q: Q, a
 
 export function Feedback({ correct, title, children }: { correct: boolean; title: string; children: ReactNode }) {
   return (
-    <div className={`feedback ${correct ? 'feedback--ok' : 'feedback--ko'}`} role="status">
-      <p className="feedback__title">
-        <span className="feedback__pill">{correct ? 'Juste' : 'Raté'}</span> {title}
-      </p>
+    <Card size="3" className={`feedback ${correct ? 'feedback--ok' : 'feedback--ko'}`} role="status">
+      <Flex gap="2" align="center" wrap="wrap" mb="3">
+        <Badge size="2" color={correct ? 'grass' : 'tomato'} variant="solid">
+          {correct ? 'Juste' : 'Raté'}
+        </Badge>
+        <Text weight="bold" size="3">
+          {title}
+        </Text>
+      </Flex>
       <div className="feedback__body">{children}</div>
-    </div>
+    </Card>
   );
 }
 
-const CHIP_COLORS = ['red', 'blue', 'green', 'black'] as const;
-
-/** Réponse chiffrée présentée comme un jeton de casino. */
-export function ChipChoice({
+/** Réponse à choix (nombre, pourcentage). */
+export function ChoiceButton({
   label,
-  index,
   state,
   disabled,
   onClick,
 }: {
   label: string;
-  index: number;
   state: 'idle' | 'right' | 'wrong';
   disabled: boolean;
   onClick: () => void;
 }) {
   return (
-    <button type="button" className={`chip-choice chip-choice--${state}`} onClick={onClick} disabled={disabled}>
-      <ChipFace color={CHIP_COLORS[index % CHIP_COLORS.length]} />
-      <span className="chip-choice__label">{label}</span>
-    </button>
+    <Button
+      size="4"
+      className={`choice choice--${state}`}
+      variant={state === 'idle' ? 'surface' : 'solid'}
+      color={state === 'right' ? 'grass' : state === 'wrong' ? 'tomato' : 'gray'}
+      highContrast={state === 'idle'}
+      onClick={onClick}
+      disabled={disabled && state === 'idle'}
+    >
+      {label}
+    </Button>
+  );
+}
+
+export function Hints({ title, items, ordered }: { title: string; items: string[]; ordered?: boolean }) {
+  const List = ordered ? 'ol' : 'ul';
+  return (
+    <Card size="3" variant="surface" className="hints">
+      <Text as="p" size="2" weight="bold" mb="2">
+        {title}
+      </Text>
+      <List className="hints__list">
+        {items.map((it) => (
+          <li key={it}>
+            <Text size="2" color="gray">
+              {it}
+            </Text>
+          </li>
+        ))}
+      </List>
+    </Card>
   );
 }

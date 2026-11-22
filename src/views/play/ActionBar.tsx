@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { Button, Card, Kbd, SegmentedControl, Slider, TextField } from '@radix-ui/themes';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import StarBorder from '../../components/reactbits/StarBorder';
+import { preflopRaises } from '../../engine/bot';
 import type { CoachAdvice } from '../../engine/coach';
 import { formatBB, type Action, type GameState, type LegalActions } from '../../engine/game';
-import { preflopRaises } from '../../engine/bot';
 
 interface Props {
   game: GameState;
@@ -14,6 +16,28 @@ interface Props {
 interface Preset {
   label: string;
   to: number;
+}
+
+/** Contour lumineux React Bits autour du bouton conseillé par le coach. */
+function Recommended({ on, children }: { on: boolean; children: ReactNode }) {
+  if (!on) return <>{children}</>;
+  return (
+    <StarBorder
+      as="div"
+      theme="light"
+      radius={14}
+      thickness={2}
+      color="#46a758"
+      trailColor="#a6e3b0"
+      backgroundColor="transparent"
+      borderColor="rgba(70, 167, 88, 0.35)"
+      duration={3.4}
+      className="reco"
+      title="Conseil du coach"
+    >
+      {children}
+    </StarBorder>
+  );
 }
 
 export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
@@ -36,9 +60,9 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
         add('×4', game.currentBet * 4);
       }
     } else if (game.currentBet === 0) {
-      add('⅓ pot', pot / 3);
-      add('½ pot', pot / 2);
-      add('⅔ pot', (pot * 2) / 3);
+      add('⅓', pot / 3);
+      add('½', pot / 2);
+      add('⅔', (pot * 2) / 3);
       add('Pot', pot);
     } else {
       add('×2,5', game.currentBet * 2.5);
@@ -55,15 +79,13 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
 
   const isBet = game.currentBet === 0;
   const allIn = raiseTo >= legal.maxRaiseTo;
-  const raiseLabel = allIn ? `Tapis ${formatBB(legal.maxRaiseTo, bb)}` : `${isBet ? 'Miser' : 'Relancer à'} ${formatBB(raiseTo, bb)}`;
+  const raiseVerb = allIn ? 'Tapis' : isBet ? 'Miser' : 'Relancer à';
+  const raiseLabel = `${raiseVerb} ${formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}`;
   const callAllIn = legal.toCall >= hero.stack;
-  const callLabel = legal.canCheck
-    ? 'Checker'
-    : callAllIn
-      ? `Suivre tapis ${formatBB(legal.toCall, bb)}`
-      : `Suivre ${formatBB(legal.toCall, bb)}`;
-
+  const callVerb = legal.canCheck ? 'Checker' : callAllIn ? 'Suivre tapis' : 'Suivre';
+  const callLabel = legal.canCheck ? callVerb : `${callVerb} ${formatBB(legal.toCall, bb)}`;
   const reco = showHint ? advice?.recommendation : null;
+  const selected = presets.find((p) => p.to === raiseTo)?.label ?? '';
 
   const doFold = () => onAction({ type: 'fold' }, 'Se coucher');
   const doCall = () => onAction({ type: legal.canCheck ? 'check' : 'call' }, callLabel);
@@ -72,7 +94,7 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.getAttribute('role') === 'slider')) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === 'f') doFold();
@@ -83,89 +105,75 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   });
 
-  const pct = legal.maxRaiseTo > legal.minRaiseTo ? ((raiseTo - legal.minRaiseTo) / (legal.maxRaiseTo - legal.minRaiseTo)) * 100 : 100;
-  const callVerb = legal.canCheck ? 'Checker' : callAllIn ? 'Suivre tapis' : 'Suivre';
-  const raiseVerb = allIn ? 'Tapis' : isBet ? 'Miser' : 'Relancer à';
-
   return (
-    <div className="action-bar">
+    <Card size="3" className="action-bar">
       {legal.canRaise && (
         <div className="action-bar__sizing">
-          <div className="presets" role="group" aria-label="Tailles de mise">
+          <SegmentedControl.Root
+            size="2"
+            value={selected}
+            onValueChange={(v) => {
+              const p = presets.find((x) => x.label === v);
+              if (p) setRaiseTo(p.to);
+            }}
+            aria-label="Tailles de mise"
+          >
             {presets.map((p) => (
-              <button
-                type="button"
-                key={p.label}
-                className={`preset ${raiseTo === p.to ? 'preset--on' : ''}`}
-                onClick={() => setRaiseTo(p.to)}
-              >
+              <SegmentedControl.Item key={p.label} value={p.label}>
                 {p.label}
-              </button>
+              </SegmentedControl.Item>
             ))}
-          </div>
-          <div className="sizing-input">
-            <input
-              id="raise-slider"
-              className="slider"
-              type="range"
-              min={legal.minRaiseTo}
-              max={legal.maxRaiseTo}
-              step={1}
-              value={raiseTo}
-              style={{ '--pct': `${pct}%` } as React.CSSProperties}
-              onChange={(e) => setRaiseTo(Number(e.target.value))}
-              aria-label="Montant de la mise"
-            />
-            <label className="bb-input">
-              <input
-                id="raise-bb"
-                type="number"
-                min={legal.minRaiseTo / bb}
-                max={legal.maxRaiseTo / bb}
-                step={0.5}
-                value={Math.round((raiseTo / bb) * 10) / 10}
-                onChange={(e) => {
-                  const v = Math.round(Number(e.target.value) * bb);
-                  if (Number.isFinite(v)) setRaiseTo(Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, v)));
-                }}
-              />
-              <span>BB</span>
-            </label>
-          </div>
+          </SegmentedControl.Root>
+          <Slider
+            className="action-bar__slider"
+            size="2"
+            min={legal.minRaiseTo}
+            max={legal.maxRaiseTo}
+            step={1}
+            value={[raiseTo]}
+            onValueChange={([v]) => setRaiseTo(v)}
+            aria-label="Montant de la mise"
+          />
+          <TextField.Root
+            id="raise-bb"
+            className="action-bar__amount"
+            size="2"
+            type="number"
+            min={legal.minRaiseTo / bb}
+            max={legal.maxRaiseTo / bb}
+            step={0.5}
+            value={Math.round((raiseTo / bb) * 10) / 10}
+            onChange={(e) => {
+              const v = Math.round(Number(e.target.value) * bb);
+              if (Number.isFinite(v)) setRaiseTo(Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, v)));
+            }}
+            aria-label="Montant en grosses blinds"
+          >
+            <TextField.Slot side="right">BB</TextField.Slot>
+          </TextField.Root>
         </div>
       )}
       <div className="action-bar__buttons">
-        <button
-          type="button"
-          id="act-fold"
-          className={`act act--fold ${reco === 'fold' ? 'act--reco' : ''}`}
-          onClick={doFold}
-        >
-          <span className="act__verb">Se coucher</span>
-          <kbd>F</kbd>
-        </button>
-        <button
-          type="button"
-          id="act-call"
-          className={`act act--call ${reco === 'call' || reco === 'check' ? 'act--reco' : ''}`}
-          onClick={doCall}
-        >
-          <span className="act__verb">{callVerb}</span>
-          {!legal.canCheck && <span className="act__amt">{formatBB(legal.toCall, bb)}</span>}
-          <kbd>C</kbd>
-        </button>
-        <button
-          type="button"
-          id="act-raise"
-          className={`act act--raise ${reco === 'raise' ? 'act--reco' : ''}`}
-          onClick={doRaise}
-          disabled={!legal.canRaise}
-        >
-          <span className="act__verb">{legal.canRaise ? raiseVerb : 'Relance impossible'}</span>
-          {legal.canRaise && <span className="act__amt">{formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}</span>}
-          <kbd>R</kbd>
-        </button>
+        <Recommended on={reco === 'fold'}>
+          <Button id="act-fold" size="4" variant="soft" color="gray" onClick={doFold}>
+            Se coucher <Kbd size="1">F</Kbd>
+          </Button>
+        </Recommended>
+        <Recommended on={reco === 'call' || reco === 'check'}>
+          <Button id="act-call" size="4" variant="solid" color="grass" onClick={doCall}>
+            {callVerb}
+            {!legal.canCheck && <span className="act-amt">{formatBB(legal.toCall, bb)}</span>}
+            <Kbd size="1">C</Kbd>
+          </Button>
+        </Recommended>
+        <Recommended on={reco === 'raise'}>
+          <Button id="act-raise" size="4" variant="solid" color="gray" highContrast onClick={doRaise} disabled={!legal.canRaise}>
+            {legal.canRaise ? raiseVerb : 'Relance impossible'}
+            {legal.canRaise && <span className="act-amt">{formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}</span>}
+            <Kbd size="1">R</Kbd>
+          </Button>
+        </Recommended>
       </div>
-    </div>
+    </Card>
   );
 }

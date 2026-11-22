@@ -1,5 +1,8 @@
-import { ChipStack } from '../components/Chips';
+import { ArrowRightIcon } from '@radix-ui/react-icons';
+import { Badge, Button, Card, DataList, Flex, Heading, Link, Text } from '@radix-ui/themes';
 import { CardRow } from '../components/PlayingCard';
+import Counter from '../components/reactbits/Counter';
+import GlareHover from '../components/reactbits/GlareHover';
 import { parseCards } from '../engine/cards';
 import { useAppData } from '../store/store';
 import { useSession } from './play/session';
@@ -21,95 +24,124 @@ export function Home() {
   const totalQuiz = Object.values(quizzes).reduce((a, q) => a + q.attempts, 0);
   const totalCorrect = Object.values(quizzes).reduce((a, q) => a + q.correct, 0);
 
+  const stats = [
+    { label: 'Mains jouées', value: play.hands, suffix: '', decimals: 0 },
+    { label: 'Gain net', value: play.netBB, suffix: ' BB', decimals: 1, tone: play.netBB >= 0 ? 'pos' : 'neg' },
+    { label: 'Décisions validées par le coach', value: coachTotal ? Math.round((play.coach.bon / coachTotal) * 100) : null, suffix: ' %', decimals: 0 },
+    { label: 'Réussite aux exercices', value: totalQuiz ? Math.round((totalCorrect / totalQuiz) * 100) : null, suffix: ' %', decimals: 0 },
+  ];
+
   return (
     <div className="page home">
       <section className="hero">
         <div className="hero__text">
-          <p className="eyebrow">No-Limit Texas Hold’em · 6-max</p>
-          <h1>
+          <Text size="2" color="gray">
+            No-Limit Texas Hold’em · 6-max
+          </Text>
+          <Heading size="9" className="hero__title">
             Lisez la table.
             <br />
             <span>Prenez la bonne décision.</span>
-          </h1>
-          <p className="lede">
+          </Heading>
+          <Text as="p" size="4" color="gray" className="lede">
             Jouez contre des bots aux styles différents avec un coach qui commente vos choix, enchaînez des exercices ciblés et vérifiez
             vos calculs avec le calculateur d’équité.
-          </p>
-          <div className="button-row">
-            <a href="#jouer" className="btn btn--primary btn--lg">
-              {session.game ? 'Reprendre la partie' : 'Jouer une session'}
-            </a>
-            <a href={`#${suggestion.route}`} className="btn btn--ghost btn--lg">
-              Exercice : {suggestion.title.toLowerCase()}
-            </a>
-          </div>
+          </Text>
+          <Flex gap="3" wrap="wrap">
+            <Button size="4" asChild>
+              <a href="#jouer">
+                {session.game ? 'Reprendre la partie' : 'Jouer une session'} <ArrowRightIcon />
+              </a>
+            </Button>
+            <Button size="4" variant="soft" color="gray" asChild>
+              <a href={`#${suggestion.route}`}>Exercice : {suggestion.title.toLowerCase()}</a>
+            </Button>
+          </Flex>
         </div>
         <div className="hero__scene" aria-hidden="true">
           <div className="scene">
             <div className="scene__felt">
-              <div className="scene__board">
-                <CardRow cards={HERO_BOARD} size="md" placeholders={5} />
-              </div>
-              <div className="scene__pot">
-                <ChipStack amount={3850} size={26} maxColumns={4} />
-                <span>Pot 38,5 BB</span>
-              </div>
+              <span className="pot">Pot 38,5 BB</span>
+              <CardRow cards={HERO_BOARD} size="md" placeholders={5} />
             </div>
             <div className="scene__hand">
-              <CardRow cards={HERO_CARDS} size="xl" fan />
+              <GlareHover borderRadius="14px" glareOpacity={0.6} mode="loop" interval={4}>
+                <CardRow cards={HERO_CARDS} size="xl" fan />
+              </GlareHover>
             </div>
-            <div className="scene__badge">
-              <span className="scene__badge-label">Votre main</span>
-              <strong>Le jeu max</strong>
-              <span className="scene__badge-hand">Quinte hauteur As</span>
-            </div>
+            <Card size="2" className="scene__badge">
+              <DataList.Root size="2">
+                <DataList.Item>
+                  <DataList.Label minWidth="70px">Main</DataList.Label>
+                  <DataList.Value>Quinte hauteur As</DataList.Value>
+                </DataList.Item>
+                <DataList.Item>
+                  <DataList.Label minWidth="70px">Rang</DataList.Label>
+                  <DataList.Value>
+                    <Badge color="grass" variant="soft">
+                      le jeu max
+                    </Badge>
+                  </DataList.Value>
+                </DataList.Item>
+              </DataList.Root>
+            </Card>
           </div>
         </div>
       </section>
 
       <section className="section">
-        <h2>Votre progression</h2>
-        <div className="tiles tiles--4">
-          <div className="tile">
-            <span className="tile__label">Mains jouées</span>
-            <span className="tile__value">{play.hands.toLocaleString('fr-FR')}</span>
-          </div>
-          <div className="tile">
-            <span className="tile__label">Gain net</span>
-            <span className={`tile__value ${play.netBB >= 0 ? 'pos' : 'neg'}`}>
-              {play.netBB > 0 ? '+' : ''}
-              {play.netBB.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} BB
-            </span>
-          </div>
-          <div className="tile">
-            <span className="tile__label">Décisions validées par le coach</span>
-            <span className="tile__value">{coachTotal ? `${Math.round((play.coach.bon / coachTotal) * 100)} %` : '—'}</span>
-          </div>
-          <div className="tile">
-            <span className="tile__label">Réussite aux exercices</span>
-            <span className="tile__value">{totalQuiz ? `${Math.round((totalCorrect / totalQuiz) * 100)} %` : '—'}</span>
-          </div>
+        <Flex justify="between" align="baseline" gap="3" wrap="wrap">
+          <Heading size="5" as="h2">
+            Votre progression
+          </Heading>
+          <Link href="#stats" size="2">
+            Toutes les statistiques
+          </Link>
+        </Flex>
+        <div className="tiles">
+          {stats.map((s) => (
+            <Card key={s.label} size="3" className="tile">
+              <Text size="2" color="gray">
+                {s.label}
+              </Text>
+              <span className={`tile__value ${s.tone ?? ''}`}>
+                {s.value === null ? (
+                  '—'
+                ) : (
+                  <Counter value={s.value} decimals={Number.isInteger(s.value) ? 0 : s.decimals} locale="fr-FR" fontSize={34} fontWeight={600} suffix={s.suffix} />
+                )}
+              </span>
+            </Card>
+          ))}
         </div>
-        <a href="#stats" className="link-more">
-          Toutes les statistiques
-        </a>
       </section>
 
       <section className="section">
-        <h2>Par où commencer</h2>
+        <Heading size="5" as="h2">
+          Par où commencer
+        </Heading>
         <div className="paths">
-          <a href="#apprendre" className="path">
-            <strong>Je débute</strong>
-            <span>Règles, classement des mains et vocabulaire, puis l’exercice « Quelle main gagne ? ».</span>
-          </a>
-          <a href="#exercices" className="path">
-            <strong>Je connais les règles</strong>
-            <span>Outs, cotes du pot et ranges d’ouverture : les trois calculs qui font gagner des jetons.</span>
-          </a>
-          <a href="#jouer" className="path">
-            <strong>Je veux jouer</strong>
-            <span>Une table 6-max avec le coach en mode « correction après coup » pour vous tester.</span>
-          </a>
+          {[
+            { href: '#apprendre', title: 'Je débute', text: 'Règles, classement des mains et vocabulaire, puis l’exercice « Quelle main gagne ? ».' },
+            { href: '#exercices', title: 'Je connais les règles', text: 'Outs, cotes du pot et ranges d’ouverture : les trois calculs qui font gagner des jetons.' },
+            { href: '#jouer', title: 'Je veux jouer', text: 'Une table 6-max avec le coach en mode « correction après coup » pour vous tester.' },
+          ].map((p) => (
+            <Card key={p.title} size="3" asChild className="path">
+              <a href={p.href}>
+                <Flex direction="column" gap="2">
+                  <Flex justify="between" align="center">
+                    <Heading size="4" as="h3">
+                      {p.title}
+                    </Heading>
+                    <ArrowRightIcon className="module__arrow" />
+                  </Flex>
+                  <Text size="2" color="gray">
+                    {p.text}
+                  </Text>
+                </Flex>
+              </a>
+            </Card>
+          ))}
         </div>
       </section>
     </div>

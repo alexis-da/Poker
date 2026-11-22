@@ -1,10 +1,11 @@
+import { Button, Callout, Flex, Kbd, SegmentedControl, Text } from '@radix-ui/themes';
 import { useCallback, useEffect, useState } from 'react';
 import { CardRow } from '../../components/PlayingCard';
 import { RangeGrid } from '../../components/RangeGrid';
 import { HAND_TOP_PERCENT, POSITION_INFO, RFI_SETS, type Position } from '../../data/charts';
 import { rangePercent } from '../../engine/ranges';
 import { generatePreflop, RFI_POSITIONS, type PreflopQuestion, type RfiPosition } from '../../trainers/generators';
-import { Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
 
 const RING: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
@@ -36,7 +37,7 @@ export function PreflopQuiz() {
   const [filter, setFilter] = useState<RfiPosition | 'all'>('all');
   const generate = useCallback(() => generatePreflop(Math.random, filter === 'all' ? undefined : filter), [filter]);
   const quiz = useQuiz<PreflopQuestion, 'raise' | 'fold'>('preflop', generate, (q, a) => q.correct === a);
-  const { question: q, answered, correct, submit, next } = quiz;
+  const { question: q, answer, answered, correct, submit, next } = quiz;
 
   // Nouvelle question quand on change de filtre.
   useEffect(() => {
@@ -57,6 +58,7 @@ export function PreflopQuiz() {
   const range = RFI_SETS[q.position];
   const inRange = q.correct === 'raise';
   const top = HAND_TOP_PERCENT[q.handClass];
+  const stateOf = (a: 'raise' | 'fold') => (!answered ? 'idle' : q.correct === a ? 'right' : answer === a ? 'wrong' : 'idle');
 
   return (
     <QuizShell
@@ -64,66 +66,72 @@ export function PreflopQuiz() {
       answered={answered}
       onNext={next}
       toolbar={
-        <div className="chip-row" role="group" aria-label="Position travaillée">
-          {(['all', ...RFI_POSITIONS] as const).map((p) => (
-            <button key={p} type="button" className={`chip-btn ${filter === p ? 'chip-btn--on' : ''}`} onClick={() => setFilter(p)}>
-              {p === 'all' ? 'Toutes positions' : p}
-            </button>
+        <div className="scroll-x">
+        <SegmentedControl.Root value={filter} onValueChange={(v) => setFilter(v as RfiPosition | 'all')} aria-label="Position travaillée">
+          <SegmentedControl.Item value="all">Toutes</SegmentedControl.Item>
+          {RFI_POSITIONS.map((p) => (
+            <SegmentedControl.Item key={p} value={p}>
+              {p}
+            </SegmentedControl.Item>
           ))}
+        </SegmentedControl.Root>
         </div>
       }
     >
       <div className="quiz-grid">
-        <div className="quiz-card felt-card">
+        <div className="felt-card">
           <PositionRing hero={q.position} />
-          <p className="quiz-prompt">
+          <Text as="p" size="3" className="on-felt">
             Vous êtes <strong>{POSITION_INFO[q.position].name}</strong> ({q.position}), personne n’est entré dans le coup.
-          </p>
+          </Text>
           <CardRow cards={q.hand} size="lg" />
-          <p className="hand-class">{q.handClass}</p>
-          <div className="answer-row">
-            <button
-              type="button"
-              className={`btn btn--raise btn--lg ${answered && q.correct === 'raise' ? 'btn--right' : ''}`}
+          <span className="hand-class">{q.handClass}</span>
+          <Flex gap="3" wrap="wrap" justify="center" width="100%">
+            <Button
+              size="4"
+              className="answer"
+              color={stateOf('raise') === 'wrong' ? 'tomato' : 'grass'}
+              variant={stateOf('raise') === 'idle' && answered ? 'soft' : 'solid'}
               onClick={() => submit('raise')}
-              disabled={answered}
+              disabled={answered && stateOf('raise') === 'idle'}
             >
-              Ouvrir à 2,5 BB <kbd>R</kbd>
-            </button>
-            <button
-              type="button"
-              className={`btn btn--fold btn--lg ${answered && q.correct === 'fold' ? 'btn--right' : ''}`}
+              Ouvrir à 2,5 BB <Kbd>R</Kbd>
+            </Button>
+            <Button
+              size="4"
+              className="answer"
+              color={stateOf('fold') === 'right' ? 'grass' : stateOf('fold') === 'wrong' ? 'tomato' : 'gray'}
+              variant={stateOf('fold') === 'idle' ? 'soft' : 'solid'}
               onClick={() => submit('fold')}
-              disabled={answered}
+              disabled={answered && stateOf('fold') === 'idle'}
             >
-              Se coucher <kbd>F</kbd>
-            </button>
-          </div>
+              Se coucher <Kbd>F</Kbd>
+            </Button>
+          </Flex>
         </div>
         <div className="quiz-side">
           {answered ? (
             <>
-              <Feedback
-                correct={!!correct}
-                title={`${q.handClass} ${inRange ? 'fait partie' : 'ne fait pas partie'} de la range ${q.position}.`}
-              >
-                <p>
-                  La range d’ouverture {q.position} contient environ {rangePercent(range).toFixed(0)} % des mains. {q.handClass} se
-                  classe dans le top {top.toFixed(top < 10 ? 1 : 0)} % des mains de départ.
-                </p>
-                <p className="muted">{POSITION_INFO[q.position].detail}</p>
+              <Feedback correct={!!correct} title={`${q.handClass} ${inRange ? 'fait partie' : 'ne fait pas partie'} de la range ${q.position}.`}>
+                <Text as="p" size="2">
+                  La range d’ouverture {q.position} contient environ {rangePercent(range).toFixed(0)} % des mains. {q.handClass} se classe
+                  dans le top {top.toFixed(top < 10 ? 1 : 0)} % des mains de départ.
+                </Text>
+                <Callout.Root size="1" color="gray" variant="surface">
+                  <Callout.Text>{POSITION_INFO[q.position].detail}</Callout.Text>
+                </Callout.Root>
               </Feedback>
               <RangeGrid range={range} focus={q.handClass} compact label={`Range d’ouverture ${q.position}`} />
             </>
           ) : (
-            <div className="hint-card">
-              <h2>Repères</h2>
-              <ul>
-                <li>Plus vous parlez tôt, plus il reste de joueurs susceptibles d’avoir une grosse main.</li>
-                <li>Les mains assorties et connectées gagnent de la valeur en fin de parole.</li>
-                <li>Les petites paires s’ouvrent partout à 100 BB : elles visent le brelan.</li>
-              </ul>
-            </div>
+            <Hints
+              title="Repères"
+              items={[
+                'Plus vous parlez tôt, plus il reste de joueurs susceptibles d’avoir une grosse main.',
+                'Les mains assorties et connectées gagnent de la valeur en fin de parole.',
+                'Les petites paires s’ouvrent partout à 100 BB : elles visent le brelan.',
+              ]}
+            />
           )}
         </div>
       </div>

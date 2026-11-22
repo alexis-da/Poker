@@ -1,6 +1,7 @@
+import { Text } from '@radix-ui/themes';
 import { CardRow } from '../../components/PlayingCard';
 import { generateEquity, type EquityQuestion } from '../../trainers/generators';
-import { ChipChoice, Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { ChoiceButton, Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
 
 export function EquityQuiz() {
   const meta = QUIZZES[4];
@@ -14,26 +15,27 @@ export function EquityQuiz() {
   return (
     <QuizShell meta={meta} answered={answered} onNext={next}>
       <div className="quiz-grid">
-        <div className="quiz-card felt-card">
-          <p className="eyebrow eyebrow--felt">{q.board.length ? 'Flop' : 'Préflop, tapis engagés'}</p>
+        <div className="felt-card">
+          <span className="felt-label">{q.board.length ? 'Flop' : 'Préflop, tapis engagés'}</span>
           {q.board.length > 0 && <CardRow cards={q.board} size="md" placeholders={5} />}
           <div className="versus">
             <div className="versus__side">
-              <span className="versus__label">Main A</span>
+              <span className="felt-label">Main A</span>
               <CardRow cards={q.hands[0]} size="lg" />
             </div>
             <span className="versus__vs">contre</span>
             <div className="versus__side">
-              <span className="versus__label">Main B</span>
+              <span className="felt-label">Main B</span>
               <CardRow cards={q.hands[1]} size="lg" />
             </div>
           </div>
-          <p className="quiz-question">Quelle est l’équité de la main A ? Choisissez la valeur la plus proche.</p>
-          <div className="chip-row-answers">
+          <Text as="p" size="3" weight="medium" className="on-felt">
+            Quelle est l’équité de la main A ? Choisissez la valeur la plus proche.
+          </Text>
+          <div className="choices">
             {q.choices.map((c, i) => (
-              <ChipChoice
+              <ChoiceButton
                 key={c}
-                index={i}
                 label={`${c} %`}
                 state={answered && i === q.correctIndex ? 'right' : answered && i === answer ? 'wrong' : 'idle'}
                 disabled={answered}
@@ -49,24 +51,26 @@ export function EquityQuiz() {
                 <span style={{ width: `${q.equity * 100}%` }}>A</span>
                 <span style={{ width: `${(1 - q.equity) * 100}%` }}>B</span>
               </div>
-              {q.matchup && <p>{q.matchup}</p>}
-              <p className="muted">
-                {q.board.length
-                  ? 'Calcul exact sur les 990 turns et rivers possibles.'
-                  : 'Estimation sur 12 000 boards simulés (Monte Carlo).'}{' '}
+              {q.matchup && (
+                <Text as="p" size="2">
+                  {q.matchup}
+                </Text>
+              )}
+              <Text as="p" size="1" color="gray">
+                {q.board.length ? 'Calcul exact sur les 990 turns et rivers possibles.' : 'Estimation sur 12 000 boards simulés (Monte Carlo).'}{' '}
                 Les égalités comptent pour moitié.
-              </p>
+              </Text>
             </Feedback>
           ) : (
-            <div className="hint-card">
-              <h2>Duels à connaître</h2>
-              <ul>
-                <li>Paire contre deux cartes supérieures : ≈ 55 / 45.</li>
-                <li>Paire contre paire inférieure : ≈ 80 / 20.</li>
-                <li>Main dominée (AK contre AQ) : ≈ 70 / 30.</li>
-                <li>Deux hautes contre deux basses : ≈ 63 / 37.</li>
-              </ul>
-            </div>
+            <Hints
+              title="Duels à connaître"
+              items={[
+                'Paire contre deux cartes supérieures : ≈ 55 / 45.',
+                'Paire contre paire inférieure : ≈ 80 / 20.',
+                'Main dominée (AK contre AQ) : ≈ 70 / 30.',
+                'Deux hautes contre deux basses : ≈ 63 / 37.',
+              ]}
+            />
           )}
         </div>
       </div>

@@ -1,20 +1,9 @@
-import { useState } from 'react';
+import { Card, DataList, Heading, Link, Table, Tabs, Text } from '@radix-ui/themes';
 import { CardRow } from '../components/PlayingCard';
 import { POSITION_INFO, type Position } from '../data/charts';
 import { parseCards } from '../engine/cards';
 import { hitProbability } from '../engine/outs';
 import { PositionRing } from './training/PreflopQuiz';
-
-type Section = 'regles' | 'mains' | 'positions' | 'cotes' | 'strategie' | 'glossaire';
-
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'regles', label: 'Règles' },
-  { id: 'mains', label: 'Combinaisons' },
-  { id: 'positions', label: 'Positions' },
-  { id: 'cotes', label: 'Cotes et outs' },
-  { id: 'strategie', label: 'Stratégie' },
-  { id: 'glossaire', label: 'Glossaire' },
-];
 
 /** Probabilité d'obtenir chaque combinaison avec 7 cartes (2 privatives + 5 communes). */
 const HANDS = [
@@ -79,269 +68,304 @@ const GLOSSARY: [string, string][] = [
 
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
+function P({ children }: { children: React.ReactNode }) {
+  return (
+    <Text as="p" size="3">
+      {children}
+    </Text>
+  );
+}
+
 export function Learn() {
-  const [section, setSection] = useState<Section>('regles');
   return (
     <div className="page learn">
       <header className="page-head">
-        <p className="eyebrow">Leçons</p>
-        <h1>Apprendre le Hold’em</h1>
-        <p className="lede">L’essentiel pour comprendre chaque décision : règles, combinaisons, position et mathématiques du pot.</p>
+        <Text size="2" color="gray">
+          Leçons
+        </Text>
+        <Heading size="8">Apprendre le Hold’em</Heading>
+        <Text as="p" size="3" color="gray" className="lede">
+          L’essentiel pour comprendre chaque décision : règles, combinaisons, position et mathématiques du pot.
+        </Text>
       </header>
-      <div className="chip-row" role="tablist" aria-label="Chapitres">
-        {SECTIONS.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            role="tab"
-            aria-selected={section === s.id}
-            className={`chip-btn ${section === s.id ? 'chip-btn--on' : ''}`}
-            onClick={() => setSection(s.id)}
-          >
-            {s.label}
-          </button>
-        ))}
-      </div>
+      <Tabs.Root defaultValue="regles">
+        <Tabs.List className="learn__tabs">
+          <Tabs.Trigger value="regles">Règles</Tabs.Trigger>
+          <Tabs.Trigger value="mains">Combinaisons</Tabs.Trigger>
+          <Tabs.Trigger value="positions">Positions</Tabs.Trigger>
+          <Tabs.Trigger value="cotes">Cotes et outs</Tabs.Trigger>
+          <Tabs.Trigger value="strategie">Stratégie</Tabs.Trigger>
+          <Tabs.Trigger value="glossaire">Glossaire</Tabs.Trigger>
+        </Tabs.List>
 
-      {section === 'regles' && (
-        <article className="prose">
-          <h2>Déroulé d’une main</h2>
-          <ol className="timeline">
-            <li>
-              <strong>Blinds.</strong> Les deux joueurs à gauche du bouton posent la petite blind (½ BB) et la grosse blind (1 BB).
-            </li>
-            <li>
-              <strong>Préflop.</strong> Chacun reçoit deux cartes privatives. Le joueur à gauche de la grosse blind parle en premier.
-            </li>
-            <li>
-              <strong>Flop.</strong> Trois cartes communes sont retournées. Nouveau tour d’enchères, en commençant par le premier
-              joueur actif à gauche du bouton.
-            </li>
-            <li>
-              <strong>Turn.</strong> Une quatrième carte commune, puis un tour d’enchères.
-            </li>
-            <li>
-              <strong>River.</strong> La cinquième carte commune, puis le dernier tour d’enchères.
-            </li>
-            <li>
-              <strong>Abattage.</strong> Les joueurs restants montrent leurs cartes. Chacun forme la meilleure main de cinq cartes
-              parmi ses deux cartes et les cinq du board.
-            </li>
-          </ol>
-          <h2>Les actions</h2>
-          <dl className="defs">
-            <div>
-              <dt>Se coucher</dt>
-              <dd>Abandonner la main et les jetons déjà misés.</dd>
-            </div>
-            <div>
-              <dt>Checker</dt>
-              <dd>Passer la parole sans miser, possible seulement si personne n’a misé sur ce tour.</dd>
-            </div>
-            <div>
-              <dt>Suivre</dt>
-              <dd>Payer la mise en cours.</dd>
-            </div>
-            <div>
-              <dt>Miser / relancer</dt>
-              <dd>
-                Augmenter la mise. En No-Limit, une relance doit être au moins égale à la relance précédente : face à une mise de 3 BB
-                portée à 9 BB (+6), la relance suivante est d’au moins 15 BB.
-              </dd>
-            </div>
-            <div>
-              <dt>Tapis</dt>
-              <dd>
-                Miser tous ses jetons. Un joueur à tapis ne peut gagner que la part du pot qu’il a pu couvrir : le reste forme un pot
-                annexe entre les autres joueurs.
-              </dd>
-            </div>
-          </dl>
-          <p>
-            En tête-à-tête, le bouton pose la petite blind, parle en premier préflop puis en dernier sur les tours suivants.
-          </p>
-        </article>
-      )}
-
-      {section === 'mains' && (
-        <article className="prose">
-          <h2>Classement des combinaisons</h2>
-          <p>De la plus forte à la plus faible, avec la probabilité de la toucher sur sept cartes.</p>
-          <ol className="hand-ranks">
-            {HANDS.map((h) => (
-              <li key={h.name}>
-                <CardRow cards={parseCards(h.cards)} size="sm" />
-                <div>
-                  <strong>{h.name}</strong>
-                  <span>{h.text}</span>
-                </div>
-                <span className="hand-ranks__p">{h.p}</span>
+        <Tabs.Content value="regles">
+          <article className="prose">
+            <Heading size="5" as="h2">
+              Déroulé d’une main
+            </Heading>
+            <ol className="steps-list">
+              <li>
+                <Text size="3">
+                  <strong>Blinds.</strong> Les deux joueurs à gauche du bouton posent la petite blind (½ BB) et la grosse blind (1 BB).
+                </Text>
               </li>
-            ))}
-          </ol>
-          <p className="muted">Les couleurs (pique, cœur, carreau, trèfle) ont toutes la même valeur et ne départagent jamais.</p>
-        </article>
-      )}
+              <li>
+                <Text size="3">
+                  <strong>Préflop.</strong> Chacun reçoit deux cartes privatives. Le joueur à gauche de la grosse blind parle en premier.
+                </Text>
+              </li>
+              <li>
+                <Text size="3">
+                  <strong>Flop.</strong> Trois cartes communes sont retournées. Nouveau tour d’enchères, en commençant par le premier joueur
+                  actif à gauche du bouton.
+                </Text>
+              </li>
+              <li>
+                <Text size="3">
+                  <strong>Turn.</strong> Une quatrième carte commune, puis un tour d’enchères.
+                </Text>
+              </li>
+              <li>
+                <Text size="3">
+                  <strong>River.</strong> La cinquième carte commune, puis le dernier tour d’enchères.
+                </Text>
+              </li>
+              <li>
+                <Text size="3">
+                  <strong>Abattage.</strong> Les joueurs restants montrent leurs cartes. Chacun forme la meilleure main de cinq cartes parmi
+                  ses deux cartes et les cinq du board.
+                </Text>
+              </li>
+            </ol>
+            <Heading size="5" as="h2">
+              Les actions
+            </Heading>
+            <DataList.Root size="3" orientation={{ initial: 'vertical', sm: 'horizontal' }}>
+              <DataList.Item>
+                <DataList.Label minWidth="140px">Se coucher</DataList.Label>
+                <DataList.Value>Abandonner la main et les jetons déjà misés.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="140px">Checker</DataList.Label>
+                <DataList.Value>Passer la parole sans miser, possible seulement si personne n’a misé sur ce tour.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="140px">Suivre</DataList.Label>
+                <DataList.Value>Payer la mise en cours.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="140px">Miser, relancer</DataList.Label>
+                <DataList.Value>
+                  Augmenter la mise. En No-Limit, une relance doit être au moins égale à la relance précédente : face à une mise de 3 BB
+                  portée à 9 BB (+6), la relance suivante est d’au moins 15 BB.
+                </DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="140px">Tapis</DataList.Label>
+                <DataList.Value>
+                  Miser tous ses jetons. Un joueur à tapis ne peut gagner que la part du pot qu’il a pu couvrir : le reste forme un pot
+                  annexe entre les autres joueurs.
+                </DataList.Value>
+              </DataList.Item>
+            </DataList.Root>
+            <P>En tête-à-tête, le bouton pose la petite blind, parle en premier préflop puis en dernier sur les tours suivants.</P>
+          </article>
+        </Tabs.Content>
 
-      {section === 'positions' && (
-        <article className="prose">
-          <h2>Pourquoi la position compte</h2>
-          <p>
-            Après le flop, le joueur le plus proche à gauche du bouton parle en premier et le bouton parle en dernier. Parler après
-            ses adversaires permet de voir leur action avant de décider : c’est pourquoi on joue plus de mains au bouton qu’en début
-            de parole.
-          </p>
-          <div className="positions">
-            <PositionRing hero="CO" />
-            <dl className="defs">
-              {(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as Position[]).map((p) => (
-                <div key={p}>
-                  <dt>
-                    {p} · {POSITION_INFO[p].name}
-                  </dt>
-                  <dd>{POSITION_INFO[p].detail}</dd>
+        <Tabs.Content value="mains">
+          <article className="prose">
+            <Heading size="5" as="h2">
+              Classement des combinaisons
+            </Heading>
+            <P>De la plus forte à la plus faible, avec la probabilité de la toucher sur sept cartes.</P>
+            <ol className="hand-ranks">
+              {HANDS.map((h) => (
+                <li key={h.name}>
+                  <Card size="2">
+                    <div className="hand-ranks__row">
+                      <CardRow cards={parseCards(h.cards)} size="sm" />
+                      <div>
+                        <Text as="p" size="3" weight="bold">
+                          {h.name}
+                        </Text>
+                        <Text as="p" size="2" color="gray">
+                          {h.text}
+                        </Text>
+                      </div>
+                      <span className="hand-ranks__p">{h.p}</span>
+                    </div>
+                  </Card>
+                </li>
+              ))}
+            </ol>
+            <Text as="p" size="2" color="gray">
+              Les couleurs (pique, cœur, carreau, trèfle) ont toutes la même valeur et ne départagent jamais.
+            </Text>
+          </article>
+        </Tabs.Content>
+
+        <Tabs.Content value="positions">
+          <article className="prose">
+            <Heading size="5" as="h2">
+              Pourquoi la position compte
+            </Heading>
+            <P>
+              Après le flop, le joueur le plus proche à gauche du bouton parle en premier et le bouton parle en dernier. Parler après ses
+              adversaires permet de voir leur action avant de décider : c’est pourquoi on joue plus de mains au bouton qu’en début de
+              parole.
+            </P>
+            <div className="positions">
+              <div className="positions__felt">
+                <PositionRing hero="CO" />
+              </div>
+              <DataList.Root size="2" orientation="vertical">
+                {(['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'] as Position[]).map((p) => (
+                  <DataList.Item key={p}>
+                    <DataList.Label>
+                      {p} · {POSITION_INFO[p].name}
+                    </DataList.Label>
+                    <DataList.Value>{POSITION_INFO[p].detail}</DataList.Value>
+                  </DataList.Item>
+                ))}
+              </DataList.Root>
+            </div>
+            <P>
+              Retrouvez les ranges d’ouverture conseillées dans <Link href="#ranges">Tableaux de ranges</Link> et entraînez-vous avec{' '}
+              <Link href="#quiz-preflop">l’exercice préflop</Link>.
+            </P>
+          </article>
+        </Tabs.Content>
+
+        <Tabs.Content value="cotes">
+          <article className="prose">
+            <Heading size="5" as="h2">
+              Cotes du pot
+            </Heading>
+            <P>
+              Pour savoir si suivre est rentable, comparez votre équité à l’équité requise :{' '}
+              <strong>équité requise = mise à payer ÷ (pot + mise adverse + votre call)</strong>.
+            </P>
+            <P>Exemple : le pot fait 10 BB et l’adversaire mise 5 BB. Vous payez 5 pour un pot final de 20 : il vous faut 25 % d’équité.</P>
+            <Card size="1" className="table-card">
+              <Table.Root>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.ColumnHeaderCell>Mise adverse</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell>Équité requise pour suivre</Table.ColumnHeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {BET_ROWS.map((r) => (
+                    <Table.Row key={r.label}>
+                      <Table.RowHeaderCell>{r.label}</Table.RowHeaderCell>
+                      <Table.Cell>{pct(r.f / (1 + 2 * r.f))}</Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Card>
+            <Heading size="5" as="h2">
+              Outs et règle du 2 et du 4
+            </Heading>
+            <P>
+              Multipliez vos outs par 2 pour estimer la probabilité de toucher à la carte suivante, par 4 pour deux cartes (du flop à la
+              river, si vous êtes à tapis). La règle surestime un peu au-delà de 8 outs avec deux cartes.
+            </P>
+            <Card size="1" className="table-card">
+              <Table.Root>
+                <Table.Header>
+                  <Table.Row>
+                    <Table.ColumnHeaderCell>Tirage</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell>Outs</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell>Une carte</Table.ColumnHeaderCell>
+                    <Table.ColumnHeaderCell>Deux cartes</Table.ColumnHeaderCell>
+                  </Table.Row>
+                </Table.Header>
+                <Table.Body>
+                  {OUTS_ROWS.map((r) => (
+                    <Table.Row key={r.draw}>
+                      <Table.RowHeaderCell>{r.draw}</Table.RowHeaderCell>
+                      <Table.Cell>{r.outs}</Table.Cell>
+                      <Table.Cell>{pct(hitProbability(r.outs, 46, 1))}</Table.Cell>
+                      <Table.Cell>{pct(hitProbability(r.outs, 47, 2))}</Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Root>
+            </Card>
+            <P>
+              Mettez-le en pratique avec les exercices <Link href="#quiz-outs">Compter ses outs</Link> et{' '}
+              <Link href="#quiz-cotes">Cotes du pot</Link>.
+            </P>
+          </article>
+        </Tabs.Content>
+
+        <Tabs.Content value="strategie">
+          <article className="prose">
+            <Heading size="5" as="h2">
+              Les principes qui rapportent
+            </Heading>
+            <ol className="steps-list">
+              {[
+                ['Jouez serré, jouez agressif.', 'Moins de mains, mais jouées en relançant. Une relance gagne de deux façons : l’adversaire se couche, ou vous avez la meilleure main.'],
+                ['Ouvrez par une relance, pas un limp.', 'Personne n’a relancé ? Relancez à 2,5 BB ou couchez-vous.'],
+                ['Respectez la position.', 'Élargissez vos ranges vers le bouton, resserrez-les en début de parole et depuis la petite blind.'],
+                ['Misez pour la valeur.', 'Avec une main forte, misez pour être payé par moins bien, surtout contre les joueurs qui suivent trop.'],
+                ['Payez avec les bonnes cotes.', 'Un tirage vaut un call quand votre équité dépasse le prix ; sinon, couchez-vous.'],
+                ['Adaptez-vous à l’adversaire.', 'Bluffez les joueurs prudents, pas les stations. Payez plus léger contre les agressifs.'],
+                ['Jugez la décision, pas le résultat.', 'Une bonne décision peut perdre une main. Sur des milliers de mains, ce sont les décisions qui comptent.'],
+              ].map(([t, d]) => (
+                <li key={t}>
+                  <Text size="3">
+                    <strong>{t}</strong> {d}
+                  </Text>
+                </li>
+              ))}
+            </ol>
+            <Heading size="5" as="h2">
+              Les profils de la table
+            </Heading>
+            <DataList.Root size="3" orientation={{ initial: 'vertical', sm: 'horizontal' }}>
+              <DataList.Item>
+                <DataList.Label minWidth="200px">Roc · serré-passif</DataList.Label>
+                <DataList.Value>Ses mises signifient presque toujours une main forte : couchez vos mains moyennes face à lui.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="200px">Régulier · serré-agressif</DataList.Label>
+                <DataList.Value>Le style de référence. Il c-bet souvent : ne lâchez pas tous vos flops ratés.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="200px">Agressif · large-agressif</DataList.Label>
+                <DataList.Value>Relance et bluffe beaucoup : laissez-le miser avec vos bonnes mains et payez plus large.</DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label minWidth="200px">Station · large-passif</DataList.Label>
+                <DataList.Value>Paye trop : misez gros pour la valeur, ne bluffez presque jamais.</DataList.Value>
+              </DataList.Item>
+            </DataList.Root>
+          </article>
+        </Tabs.Content>
+
+        <Tabs.Content value="glossaire">
+          <article className="prose prose--wide">
+            <Heading size="5" as="h2">
+              Glossaire
+            </Heading>
+            <div className="glossary">
+              {GLOSSARY.map(([t, d]) => (
+                <div key={t}>
+                  <Text as="p" size="3" weight="bold">
+                    {t}
+                  </Text>
+                  <Text as="p" size="2" color="gray">
+                    {d}
+                  </Text>
                 </div>
               ))}
-            </dl>
-          </div>
-          <p>
-            Retrouvez les ranges d’ouverture conseillées dans <a href="#ranges">Tableaux de ranges</a> et entraînez-vous avec{' '}
-            <a href="#quiz-preflop">l’exercice préflop</a>.
-          </p>
-        </article>
-      )}
-
-      {section === 'cotes' && (
-        <article className="prose">
-          <h2>Cotes du pot</h2>
-          <p>
-            Pour savoir si suivre est rentable, comparez votre équité à l’équité requise :
-            <br />
-            <strong>équité requise = mise à payer ÷ (pot + mise adverse + votre call)</strong>.
-          </p>
-          <p>
-            Exemple : le pot fait 10 BB et l’adversaire mise 5 BB. Vous payez 5 pour un pot final de 20 : il vous faut 25 %
-            d’équité.
-          </p>
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Taille de la mise adverse</th>
-                  <th>Équité requise pour suivre</th>
-                </tr>
-              </thead>
-              <tbody>
-                {BET_ROWS.map((r) => (
-                  <tr key={r.label}>
-                    <td>{r.label}</td>
-                    <td>{pct(r.f / (1 + 2 * r.f))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <h2>Outs et règle du 2 et du 4</h2>
-          <p>
-            Multipliez vos outs par 2 pour estimer la probabilité de toucher à la carte suivante, par 4 pour deux cartes (du flop à la
-            river, si vous êtes à tapis). La règle surestime un peu au-delà de 8 outs avec deux cartes.
-          </p>
-          <div className="table-scroll">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Tirage</th>
-                  <th>Outs</th>
-                  <th>Une carte (turn → river)</th>
-                  <th>Deux cartes (flop → river)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {OUTS_ROWS.map((r) => (
-                  <tr key={r.draw}>
-                    <td>{r.draw}</td>
-                    <td>{r.outs}</td>
-                    <td>{pct(hitProbability(r.outs, 46, 1))}</td>
-                    <td>{pct(hitProbability(r.outs, 47, 2))}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p>
-            Mettez-le en pratique avec les exercices <a href="#quiz-outs">Compter ses outs</a> et{' '}
-            <a href="#quiz-cotes">Cotes du pot</a>.
-          </p>
-        </article>
-      )}
-
-      {section === 'strategie' && (
-        <article className="prose">
-          <h2>Les principes qui rapportent</h2>
-          <ol className="principles">
-            <li>
-              <strong>Jouez serré, jouez agressif.</strong> Moins de mains, mais jouées en relançant. Une relance gagne de deux façons
-              : l’adversaire se couche, ou vous avez la meilleure main.
-            </li>
-            <li>
-              <strong>Ouvrez par une relance, pas un limp.</strong> Personne n’a relancé ? Relancez à 2,5 BB ou couchez-vous.
-            </li>
-            <li>
-              <strong>Respectez la position.</strong> Élargissez vos ranges vers le bouton, resserrez-les en début de parole et depuis
-              la petite blind.
-            </li>
-            <li>
-              <strong>Misez pour la valeur.</strong> Avec une main forte, misez pour être payé par moins bien, surtout contre les
-              joueurs qui suivent trop.
-            </li>
-            <li>
-              <strong>Payez avec les bonnes cotes.</strong> Un tirage vaut un call quand votre équité dépasse le prix ; sinon,
-              couchez-vous.
-            </li>
-            <li>
-              <strong>Adaptez-vous à l’adversaire.</strong> Bluffez les joueurs prudents, pas les stations. Payez plus léger contre les
-              agressifs.
-            </li>
-            <li>
-              <strong>Jugez la décision, pas le résultat.</strong> Une bonne décision peut perdre une main. Sur des milliers de mains,
-              ce sont les décisions qui comptent.
-            </li>
-          </ol>
-          <h2>Les profils de la table</h2>
-          <dl className="defs">
-            <div>
-              <dt>Roc (serré-passif)</dt>
-              <dd>Ses mises signifient presque toujours une main forte : couchez vos mains moyennes face à lui.</dd>
             </div>
-            <div>
-              <dt>Régulier (serré-agressif)</dt>
-              <dd>Le style de référence. C-bet souvent : ne lâchez pas tous vos flops ratés.</dd>
-            </div>
-            <div>
-              <dt>Agressif (large-agressif)</dt>
-              <dd>Relance et bluffe beaucoup : laissez-le miser avec vos bonnes mains et payez plus large.</dd>
-            </div>
-            <div>
-              <dt>Station (large-passif)</dt>
-              <dd>Paye trop : misez gros pour la valeur, ne bluffez presque jamais.</dd>
-            </div>
-          </dl>
-        </article>
-      )}
-
-      {section === 'glossaire' && (
-        <article className="prose">
-          <h2>Glossaire</h2>
-          <dl className="defs defs--glossary">
-            {GLOSSARY.map(([t, d]) => (
-              <div key={t}>
-                <dt>{t}</dt>
-                <dd>{d}</dd>
-              </div>
-            ))}
-          </dl>
-        </article>
-      )}
+          </article>
+        </Tabs.Content>
+      </Tabs.Root>
     </div>
   );
 }

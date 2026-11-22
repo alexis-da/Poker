@@ -37,10 +37,20 @@ décisions selon le coach, réussite par exercice.
 
 ## Interface
 
-L’écran de jeu reprend les codes de lisibilité des salles de poker en ligne : cartes à gros index
-en 4 couleurs, plaques de joueurs avec le tapis en gros chiffres, mises posées devant chaque joueur,
-barre de temps sous le joueur qui parle, gros boutons d’action avec les tailles de mise juste au-dessus.
-Sur téléphone, la table et la console d’action tiennent sur un seul écran.
+L’interface est construite avec des bibliothèques conçues par des designers :
+
+- **[Radix Themes](https://www.radix-ui.com/themes)** (MIT) pour tous les composants d’interface :
+  onglets, boutons, cartes, curseur, contrôles segmentés, listes de données, tableaux.
+  Thème clair, accent vert « grass », gris « sand », grands arrondis ; icônes Radix Icons.
+- **[React Bits](https://github.com/DavidHDev/react-bits)** (MIT + Commons Clause) pour quelques effets,
+  copiés dans `src/components/reactbits/` avec leur licence : `SpotlightCard` (panneau du coach),
+  `StarBorder` (bouton conseillé), `Counter` (chiffres à rouleaux), `GlareHover` (reflet sur les cartes).
+  Les composants peuvent être utilisés librement dans l’application, mais pas revendus seuls.
+- Polices **Geist** et **Geist Mono** (Google Fonts).
+
+L’écran de jeu garde les codes de lisibilité des salles en ligne : cartes à gros index en 4 couleurs,
+tapis en gros chiffres, mises devant chaque joueur, barre de temps sous le joueur qui parle, gros boutons
+d’action. Sur téléphone, la table et la console d’action tiennent sur un seul écran.
 
 Deux styles de cartes (réglage à la table) :
 - **Gros index** (par défaut), dessinées par l’application, avec ou sans jeu 4 couleurs ;
