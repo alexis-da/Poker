@@ -47,6 +47,8 @@ L’interface est construite avec des bibliothèques conçues par des designers 
   `StarBorder` (bouton conseillé), `Counter` (chiffres à rouleaux), `GlareHover` (reflet sur les cartes).
   Les composants peuvent être utilisés librement dans l’application, mais pas revendus seuls.
 - Polices **Geist** et **Geist Mono** (Google Fonts).
+- **Mode sombre** : menu en haut à droite (thème du système, clair ou sombre). En mode « système »,
+  l’application suit le réglage de l’appareil, ou celui de la page qui l’héberge (`data-theme` sur `<html>`).
 
 L’écran de jeu garde les codes de lisibilité des salles en ligne : cartes à gros index en 4 couleurs,
 tapis en gros chiffres, mises devant chaque joueur, barre de temps sous le joueur qui parle, gros boutons

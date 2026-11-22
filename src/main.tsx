@@ -11,12 +11,21 @@ import '@radix-ui/themes/tokens/colors/blue.css';
 import '@radix-ui/themes/components.css';
 import '@radix-ui/themes/utilities.css';
 import { App } from './App';
+import { useAppearance, useAppearanceEffects } from './appearance';
 import './styles.css';
+
+function Root() {
+  const appearance = useAppearance();
+  useAppearanceEffects(appearance);
+  return (
+    <Theme accentColor="grass" grayColor="sand" radius="large" appearance={appearance} panelBackground="solid" scaling="100%">
+      <App />
+    </Theme>
+  );
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Theme accentColor="grass" grayColor="sand" radius="large" appearance="light" panelBackground="solid" scaling="100%">
-      <App />
-    </Theme>
+    <Root />
   </StrictMode>,
 );

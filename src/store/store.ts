@@ -35,6 +35,8 @@ export interface Settings {
   fourColor: boolean;
   /** « lisible » : gros index façon salles en ligne ; « illustre » : cartes traditionnelles. */
   cardStyle: 'lisible' | 'illustre';
+  /** Thème : celui du système (ou de la page hôte), clair ou sombre. */
+  appearance: 'system' | 'light' | 'dark';
   botSpeed: 'lent' | 'normal' | 'rapide';
   coachMode: 'visible' | 'apres' | 'off';
   opponents: number;
@@ -70,6 +72,7 @@ export const emptyPlay = (): PlayStats => ({
 export const defaultSettings = (): Settings => ({
   fourColor: true,
   cardStyle: 'lisible',
+  appearance: 'system',
   botSpeed: 'normal',
   coachMode: 'visible',
   opponents: 5,

@@ -6,6 +6,7 @@ import Counter from '../../components/reactbits/Counter';
 import SpotlightCard from '../../components/reactbits/SpotlightCard';
 import { RECO_LABELS, type CoachAdvice } from '../../engine/coach';
 import { formatBB } from '../../engine/game';
+import { useAppearance } from '../../appearance';
 import type { FeedbackEntry } from './session';
 
 interface Props {
@@ -63,9 +64,16 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
   const [revealedFor, setRevealedFor] = useState<string | null>(null);
   const key = advice ? `${advice.street}-${advice.toCall}-${advice.pot}` : null;
   const show = mode === 'visible' || (mode === 'apres' && revealedFor === key);
+  const appearance = useAppearance();
 
   return (
-    <SpotlightCard theme="light" spotlightColor="rgba(70, 167, 88, 0.16)" className="coach" aria-live="polite">
+    <SpotlightCard
+      key={appearance}
+      theme={appearance}
+      spotlightColor={appearance === 'dark' ? 'rgba(113, 208, 131, 0.14)' : 'rgba(70, 167, 88, 0.16)'}
+      className="coach"
+      aria-live="polite"
+    >
       <Flex justify="between" align="center" mb="3">
         <Text size="2" weight="bold">
           Coach

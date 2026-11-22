@@ -1,5 +1,6 @@
 import { Button, Card, Kbd, SegmentedControl, Slider, TextField } from '@radix-ui/themes';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useAppearance } from '../../appearance';
 import StarBorder from '../../components/reactbits/StarBorder';
 import { preflopRaises } from '../../engine/bot';
 import type { CoachAdvice } from '../../engine/coach';
@@ -20,17 +21,20 @@ interface Preset {
 
 /** Contour lumineux React Bits autour du bouton conseillé par le coach. */
 function Recommended({ on, children }: { on: boolean; children: ReactNode }) {
+  const appearance = useAppearance();
   if (!on) return <>{children}</>;
+  const dark = appearance === 'dark';
   return (
     <StarBorder
+      key={appearance}
       as="div"
-      theme="light"
+      theme={appearance}
       radius={14}
       thickness={2}
-      color="#46a758"
-      trailColor="#a6e3b0"
+      color={dark ? '#71d083' : '#46a758'}
+      trailColor={dark ? '#2f6b3a' : '#a6e3b0'}
       backgroundColor="transparent"
-      borderColor="rgba(70, 167, 88, 0.35)"
+      borderColor={dark ? 'rgba(113, 208, 131, 0.35)' : 'rgba(70, 167, 88, 0.35)'}
       duration={3.4}
       className="reco"
       title="Conseil du coach"

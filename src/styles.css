@@ -1,8 +1,13 @@
-/* Direction « Studio » : composants Radix Themes (vert grass, gris sand, grands arrondis) sur fond clair,
-   typographie Geist / Geist Mono, une table en feutre vert sur un rail espresso comme seule pièce sombre.
-   Les couleurs d'interface viennent des variables Radix ; seules la table et les cartes ont leurs propres teintes. */
+/* Direction « Studio » : composants Radix Themes (vert grass, gris sand, grands arrondis), clair ou sombre,
+   typographie Geist / Geist Mono, une table en feutre vert sur un rail espresso.
+   Les couleurs d'interface viennent des variables Radix ; seules la page, la table et les cartes ont leurs teintes.
+   Thème : choix de l'utilisateur (classes app-light / app-dark sur <html>), sinon data-theme de la page hôte,
+   sinon préférence de l'appareil. */
 :root {
   color-scheme: light;
+  --page-bg: #fdfdfc;
+  --page-fg: #21201c;
+  --topbar-bg: rgba(253, 253, 252, 0.88);
   --felt-1: #256b52;
   --felt-2: #1d5643;
   --felt-3: #174636;
@@ -14,6 +19,25 @@
   --mono: 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']):not(.app-light) {
+    color-scheme: dark;
+    --page-bg: #111110;
+    --page-fg: #eeeeec;
+    --topbar-bg: rgba(17, 17, 16, 0.86);
+    --rail: #3b342e;
+  }
+}
+
+:root[data-theme='dark']:not(.app-light),
+:root.app-dark {
+  color-scheme: dark;
+  --page-bg: #111110;
+  --page-fg: #eeeeec;
+  --topbar-bg: rgba(17, 17, 16, 0.86);
+  --rail: #3b342e;
+}
+
 .radix-themes {
   --default-font-family: 'Geist', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --code-font-family: 'Geist Mono', ui-monospace, Menlo, monospace;
@@ -23,8 +47,8 @@
 html,
 body {
   margin: 0;
-  background: #fdfdfc;
-  color: #21201c;
+  background: var(--page-bg);
+  color: var(--page-fg);
 }
 
 * {
@@ -37,7 +61,7 @@ body::before {
   inset: 0 0 auto;
   height: env(safe-area-inset-top, 0px);
   z-index: 40;
-  background: #fdfdfc;
+  background: var(--page-bg);
 }
 
 .lede {
@@ -62,7 +86,7 @@ body::before {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
   z-index: 30;
-  background: rgba(253, 253, 252, 0.88);
+  background: var(--topbar-bg);
   backdrop-filter: saturate(1.4) blur(12px);
   -webkit-backdrop-filter: saturate(1.4) blur(12px);
   border-bottom: 1px solid var(--gray-a4);
@@ -122,6 +146,10 @@ body::before {
 .topbar__session {
   flex: none;
   text-decoration: none;
+}
+
+.theme-toggle.rt-IconButton {
+  flex: none;
 }
 
 .content {
@@ -487,7 +515,7 @@ body::before {
   font-weight: 600;
   font-size: 15px;
   text-align: center;
-  color: var(--gray-12);
+  color: #18181b;
   background: #ffffff;
   padding: 7px 16px;
   border-radius: 999px;
@@ -678,7 +706,7 @@ body::before {
   padding: 3px 11px 3px 4px;
   border-radius: 999px;
   background: #ffffff;
-  color: var(--gray-12);
+  color: #18181b;
   font-family: var(--mono);
   font-size: 14px;
   font-weight: 600;
@@ -1001,7 +1029,7 @@ body::before {
 .felt-card .rt-Button.rt-variant-soft[data-accent-color='gray']:not(:disabled),
 .felt-card .choice--idle.rt-Button:not(:disabled) {
   background: #ffffff;
-  color: var(--gray-12);
+  color: #18181b;
 }
 
 .feedback.rt-Card {
@@ -1077,7 +1105,7 @@ body::before {
   padding: 3px 8px;
   border-radius: 8px;
   background: #ffffff;
-  color: var(--gray-11);
+  color: #57534e;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
@@ -1087,7 +1115,7 @@ body::before {
 }
 
 .ring__seat--hero {
-  background: var(--gray-12);
+  background: #18181b;
   color: #ffffff;
 }
 
@@ -1099,7 +1127,7 @@ body::before {
   height: 17px;
   border-radius: 50%;
   background: #ffffff;
-  color: var(--gray-12);
+  color: #18181b;
   font-size: 10px;
   display: grid;
   place-items: center;
@@ -1160,7 +1188,7 @@ body::before {
 }
 
 .split-bar span:last-child {
-  background: var(--gray-11);
+  background: #6f6d66;
 }
 
 .showdown-grid {
@@ -1179,7 +1207,7 @@ body::before {
   padding: 14px 12px;
   border-radius: var(--radius-5);
   border: 0;
-  background: #ffffff;
+  background: var(--color-panel-solid);
   color: var(--gray-12);
   font: inherit;
   cursor: pointer;
@@ -1254,7 +1282,7 @@ button.rg-cell {
 
 .rg-in.rg-pair {
   background: var(--gray-12);
-  color: #ffffff;
+  color: var(--gray-1);
 }
 
 .rg-in.rg-suited {
@@ -1614,7 +1642,7 @@ button.rg-cell {
 
 .stack-bar__seg--discutable {
   background: var(--amber-9);
-  color: var(--gray-12);
+  color: #21201c;
 }
 
 .stack-bar__seg--erreur {
@@ -1772,6 +1800,12 @@ button.rg-cell {
 
   .topbar__inner > .rt-TabNavRoot {
     flex-basis: 100%;
+    order: 2;
+  }
+
+  .theme-toggle.rt-IconButton {
+    order: 1;
+    margin-left: auto;
   }
 
   .content {

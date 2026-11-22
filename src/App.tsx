@@ -1,12 +1,16 @@
 import {
   BarChartIcon,
   CardStackIcon,
+  DesktopIcon,
   HomeIcon,
   MixerHorizontalIcon,
+  MoonIcon,
   ReaderIcon,
+  SunIcon,
   TargetIcon,
 } from '@radix-ui/react-icons';
-import { Badge, TabNav } from '@radix-ui/themes';
+import { Badge, DropdownMenu, IconButton, TabNav } from '@radix-ui/themes';
+import { useAppearance } from './appearance';
 import { useEffect, useState, type ComponentType } from 'react';
 import { preloadCards } from './components/PlayingCard';
 import { useSettings } from './store/store';
@@ -47,6 +51,41 @@ const NAV = [
   { id: 'apprendre', label: 'Leçons', icon: ReaderIcon },
   { id: 'stats', label: 'Stats', icon: BarChartIcon },
 ];
+
+const APPEARANCES = [
+  { value: 'system', label: 'Thème du système', icon: DesktopIcon },
+  { value: 'light', label: 'Clair', icon: SunIcon },
+  { value: 'dark', label: 'Sombre', icon: MoonIcon },
+] as const;
+
+/** Choix du thème : système, clair ou sombre. */
+function ThemeToggle() {
+  const [settings, setSettings] = useSettings();
+  const resolved = useAppearance();
+  const Current = resolved === 'dark' ? MoonIcon : SunIcon;
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <IconButton variant="ghost" color="gray" size="2" className="theme-toggle" aria-label="Changer de thème">
+          <Current width="18" height="18" />
+        </IconButton>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Label>Apparence</DropdownMenu.Label>
+        <DropdownMenu.RadioGroup
+          value={settings.appearance}
+          onValueChange={(v) => setSettings({ appearance: v as typeof settings.appearance })}
+        >
+          {APPEARANCES.map((a) => (
+            <DropdownMenu.RadioItem key={a.value} value={a.value}>
+              <a.icon /> {a.label}
+            </DropdownMenu.RadioItem>
+          ))}
+        </DropdownMenu.RadioGroup>
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
+  );
+}
 
 function readRoute(): string {
   const h = window.location.hash.replace(/^#/, '');
@@ -104,6 +143,7 @@ export function App() {
               </Badge>
             </a>
           )}
+          <ThemeToggle />
         </div>
       </header>
       <main className="content">
