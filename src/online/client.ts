@@ -8,7 +8,8 @@ import type { Request, Response } from './service';
 const URL: string = import.meta.env.VITE_SUPABASE_URL ?? '';
 const KEY: string = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
 
-export const onlineConfigured = Boolean(URL && KEY);
+// La page autonome (artefact claude.ai) ne peut pas joindre le serveur : le jeu en ligne se joue sur le site.
+export const onlineConfigured = Boolean(URL && KEY) && import.meta.env.MODE !== 'artifact';
 
 let client: SupabaseClient | null = null;
 

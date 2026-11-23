@@ -111,4 +111,10 @@ $$;
 revoke all on function public.purge_old_rooms () from public, anon, authenticated;
 grant execute on function public.purge_old_rooms () to service_role;
 
+-- Droits explicites : lecture seule pour les joueurs connectés (filtrée par les règles ci-dessus),
+-- tout pour le serveur de jeu.
+revoke all on public.rooms, public.room_members, public.room_secrets, public.room_hands from anon, authenticated;
+grant select on public.rooms, public.room_members, public.room_hands to authenticated;
+grant all on public.rooms, public.room_members, public.room_secrets, public.room_hands to service_role;
+
 alter publication supabase_realtime add table public.rooms, public.room_hands;

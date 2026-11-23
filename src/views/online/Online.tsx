@@ -36,8 +36,9 @@ function NotConfigured() {
       </header>
       <Callout.Root color="amber">
         <Callout.Text>
-          Le jeu en ligne n’est pas configuré sur cette version : il faut l’adresse du serveur Supabase
-          (VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY).
+          {import.meta.env.MODE === 'artifact'
+            ? 'Le jeu en ligne n’est pas disponible dans cette version autonome : ouvrez le site de Coach Hold’em pour jouer avec vos amis.'
+            : 'Le jeu en ligne n’est pas configuré sur cette version : il faut l’adresse du serveur Supabase (VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY).'}
         </Callout.Text>
       </Callout.Root>
     </div>
