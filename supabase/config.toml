@@ -1,0 +1,5 @@
+# Configuration minimale pour la CLI Supabase (déploiement de la fonction « table »).
+project_id = "coach-holdem"
+
+[functions.table]
+verify_jwt = true

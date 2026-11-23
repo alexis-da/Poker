@@ -12,6 +12,8 @@ interface Props {
   thinking: number | null;
   /** Temps de réflexion du bot qui parle, pour la barre de temps. */
   thinkMs: number;
+  /** Siège affiché en bas de la table (en ligne : le vôtre). Par défaut, le joueur humain. */
+  heroSeat?: number;
 }
 
 type RadixColor = 'gray' | 'blue' | 'grass' | 'amber' | 'tomato';
@@ -186,12 +188,15 @@ function placeBets(stage: HTMLElement | null) {
   }
 }
 
-export function Table({ game, thinking, thinkMs }: Props) {
+export function Table({ game, thinking, thinkMs, heroSeat }: Props) {
   const compact = useCompact();
   const [stageRef, seatScale] = useSeatScale(compact);
   // Après chaque rendu, avant l'affichage : replacer les mises selon ce qui est réellement à l'écran.
   useLayoutEffect(() => placeBets(stageRef.current));
   const n = game.players.length;
+  // Rotation : le siège du joueur est toujours en bas, les autres dans le sens horaire.
+  const hero = heroSeat ?? Math.max(0, game.players.findIndex((p) => p.isHuman));
+  const at = (i: number) => (i - hero + n) % n;
   const bb = game.bigBlind;
   const pot = potTotal(game);
   const streetBets = game.players.reduce((a, p) => a + p.bet, 0);
@@ -243,8 +248,8 @@ export function Table({ game, thinking, thinkMs }: Props) {
       </div>
 
       {game.players.map((p, i) => {
-        const pt = seatPoint(i, n, 1, compact);
-        const bt = seatPoint(i, n, compact ? 0.6 : 0.55, compact);
+        const pt = seatPoint(at(i), n, 1, compact);
+        const bt = seatPoint(at(i), n, compact ? 0.6 : 0.55, compact);
         const profile = p.profile ? PROFILE_BY_ID[p.profile] : null;
         const isTurn = game.toAct === i && !result;
         const showCards = p.isHuman || p.shown;
@@ -347,7 +352,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
 
       {result &&
         [...winnerShare.keys()].map((w) => {
-          const to = seatPoint(w, n, 0.72, compact);
+          const to = seatPoint(at(w), n, 0.72, compact);
           const style = { '--tx': `${to.x}%`, '--ty': `${to.y}%` } as CSSProperties;
           return (
             <span key={`fly-${game.handNumber}-${w}`} className="pot-flight" style={style} aria-hidden="true">

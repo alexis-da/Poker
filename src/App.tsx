@@ -9,9 +9,9 @@ import {
   SunIcon,
   TargetIcon,
 } from '@radix-ui/react-icons';
-import { Badge, DropdownMenu, IconButton, TabNav } from '@radix-ui/themes';
+import { Badge, DropdownMenu, Flex, IconButton, Spinner, TabNav, Text } from '@radix-ui/themes';
 import { useAppearance } from './appearance';
-import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ComponentType } from 'react';
 import { preloadCards } from './components/PlayingCard';
 import { useSettings } from './store/store';
 import { Home } from './views/Home';
@@ -28,9 +28,27 @@ import { PreflopQuiz } from './views/training/PreflopQuiz';
 import { TrainingHub } from './views/training/TrainingHub';
 import { WinnerQuiz } from './views/training/WinnerQuiz';
 
+// Le jeu en ligne (client Supabase) n'est chargé qu'à la première visite.
+const OnlineView = lazy(() => import('./views/online/Online').then((m) => ({ default: m.Online })));
+
+function OnlineRoute() {
+  return (
+    <Suspense
+      fallback={
+        <Flex align="center" justify="center" gap="3" py="9">
+          <Spinner size="3" /> <Text color="gray">Chargement du jeu en ligne…</Text>
+        </Flex>
+      }
+    >
+      <OnlineView />
+    </Suspense>
+  );
+}
+
 const ROUTES: Record<string, { view: ComponentType; nav: string }> = {
   accueil: { view: Home, nav: 'accueil' },
   jouer: { view: Play, nav: 'jouer' },
+  'en-ligne': { view: OnlineRoute, nav: 'jouer' },
   exercices: { view: TrainingHub, nav: 'exercices' },
   'quiz-preflop': { view: PreflopQuiz, nav: 'exercices' },
   'quiz-outs': { view: OutsQuiz, nav: 'exercices' },
@@ -88,7 +106,8 @@ function ThemeToggle() {
 }
 
 function readRoute(): string {
-  const h = window.location.hash.replace(/^#/, '');
+  // « #en-ligne/CODE » : la table est lue par la vue elle-même.
+  const h = window.location.hash.replace(/^#/, '').split('/')[0];
   return ROUTES[h] ? h : 'accueil';
 }
 
@@ -148,7 +167,7 @@ export function App() {
               </TabNav.Link>
             ))}
           </TabNav.Root>
-          {session.game && (
+          {session.game && route !== 'en-ligne' && (
             <a href="#jouer" className="topbar__session">
               <Badge size="2" color={session.netBB >= 0 ? 'grass' : 'tomato'} variant="soft">
                 {nav === 'jouer' ? 'Session' : `Table en cours · main ${session.game.handNumber} ·`}{' '}

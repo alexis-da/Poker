@@ -58,6 +58,39 @@ Dans la version publiée sur claude.ai, l’historique va dans la base privée d
 (`data/users/<id>`, visible de vous seul), regroupé en un document par jour et par appareil, et
 l’historique local existant y est importé à la première ouverture. Il s’efface depuis les statistiques.
 
+## Jeu en ligne
+
+**En ligne** (bouton sur l’accueil et l’écran Jouer) : tables privées de 2 à 6 joueurs avec un code de
+5 caractères ou un lien à partager, places libres complétées par des bots si l’hôte le souhaite,
+100 BB de départ, parties à élimination, classement final et « Rejouer » pour l’hôte. Chacun se voit
+en bas de la table ; le coach et l’enregistrement des erreurs fonctionnent aussi en ligne.
+
+Fonctionnement (Supabase) :
+
+- **Connexion** anonyme avec un simple pseudo (session conservée dans le navigateur, on retrouve sa
+  place en rouvrant le lien).
+- **Le serveur fait foi** : la fonction `supabase/functions/table` (Deno) mélange avec un tirage
+  cryptographique, distribue, valide chaque action et fait jouer les bots. Elle réutilise le moteur
+  de l’application (`src/online/service.ts` et `logic.ts`, regroupés dans `service.js` par
+  `npm run build:server`).
+- **Personne ne voit les cartes des autres** : la base garde l’état complet dans `room_secrets`
+  (illisible par les joueurs), publie une vue sans cartes cachées dans `rooms.public`, et chaque joueur
+  ne peut lire que sa ligne de `room_hands` (règles d’accès par ligne).
+- **Temps réel** : les navigateurs suivent `rooms` et `room_hands` (Supabase Realtime). Les étapes
+  automatiques (action d’un bot, 30 s écoulées, main suivante après 5 s) sont demandées par les
+  navigateurs présents ; le serveur ne les applique qu’une fois et qu’à leur heure (numéro de version).
+- Un joueur qui quitte la table, ou laisse passer deux fois son temps, est joué automatiquement
+  (check ou passe) jusqu’à son retour. Les tables inactives depuis 2 jours sont supprimées.
+
+Mise en place d’un projet Supabase :
+
+1. Appliquer `supabase/migrations/20261123100000_jeu_en_ligne.sql` (éditeur SQL ou `supabase db push`).
+2. Activer les connexions anonymes (Authentication → Sign In / Providers → Anonymous).
+3. Déployer la fonction : `npm run build:server && npx supabase functions deploy table --project-ref <ref>`.
+4. Renseigner l’URL du projet et la clé publique `anon` dans `VITE_SUPABASE_URL` et
+   `VITE_SUPABASE_ANON_KEY` (fichier `.env` ou variables du projet Vercel). Ces deux valeurs sont
+   publiques : la sécurité repose sur les règles d’accès de la base.
+
 ## Interface
 
 L’interface est construite avec des bibliothèques conçues par des designers :
@@ -117,6 +150,8 @@ src/trainers/    générateurs de questions des exercices
 src/views/       écrans (React)
 src/store/       statistiques et réglages (localStorage)
 src/training/    historique d’entraînement (Dexie ou base du compte) et recommandations
+src/online/      jeu en ligne : règles de table, service, client Supabase, suivi en temps réel
+supabase/        schéma de la base et fonction « table » (serveur de jeu)
 tests/           tests unitaires et simulations de milliers de mains
 scripts/         génération de la table préflop, build en page unique
 ```

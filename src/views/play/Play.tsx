@@ -1,4 +1,4 @@
-import { ExitIcon } from '@radix-ui/react-icons';
+import { ArrowRightIcon, ExitIcon } from '@radix-ui/react-icons';
 import {
   Badge,
   Button,
@@ -142,6 +142,21 @@ function Setup() {
           </Flex>
         </Card>
       </form>
+      <Card size="3" asChild className="path online-entry">
+        <a href="#en-ligne">
+          <Flex justify="between" align="center" gap="3">
+            <Flex direction="column" gap="1">
+              <Heading size="4" as="h2">
+                Jouer en ligne avec des amis
+              </Heading>
+              <Text size="2" color="gray">
+                Une table privée de 2 à 6 joueurs, un lien à partager, et des bots pour compléter si vous le souhaitez.
+              </Text>
+            </Flex>
+            <ArrowRightIcon className="module__arrow" />
+          </Flex>
+        </a>
+      </Card>
     </div>
   );
 }

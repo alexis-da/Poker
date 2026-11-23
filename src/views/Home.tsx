@@ -54,6 +54,9 @@ export function Home() {
                 {session.game ? 'Reprendre la partie' : 'Jouer une session'} <ArrowRightIcon />
               </a>
             </Button>
+            <Button size="4" variant="soft" asChild>
+              <a href="#en-ligne">Jouer en ligne</a>
+            </Button>
             <Button size="4" variant="soft" color="gray" asChild>
               <a href={`#${suggestion.route}`}>Exercice : {suggestion.title.toLowerCase()}</a>
             </Button>
