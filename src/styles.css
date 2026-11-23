@@ -421,7 +421,7 @@ body::before {
 
 .play {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
   align-items: start;
 }
@@ -430,6 +430,12 @@ body::before {
    la table occupe la place restante et garde ses proportions ; les panneaux défilent à part. */
 .app--jouer .content {
   padding-block: 16px;
+}
+
+/* Sur grand écran, l'écran de jeu prend plus de largeur pour agrandir la table. */
+.app--jouer .content,
+.app--jouer .topbar__inner {
+  max-width: 1720px;
 }
 
 .play__main {
@@ -459,7 +465,7 @@ body::before {
   container-type: size;
   display: grid;
   place-items: center;
-  padding-block: 44px 60px;
+  padding-block: 20px 62px;
 }
 
 .play__bar {
@@ -477,8 +483,8 @@ body::before {
 .table-stage {
   --seat-scale: 1;
   position: relative;
-  width: min(100cqw, calc(100cqh * 16 / 9.2));
-  aspect-ratio: 16 / 9.2;
+  width: min(100cqw, calc(100cqh * 2));
+  aspect-ratio: 2 / 1;
   margin: 0;
 }
 
@@ -730,6 +736,14 @@ body::before {
   animation: pop 0.3s cubic-bezier(0.2, 1.3, 0.4, 1) backwards;
 }
 
+/* Votre gain ou perte s'affiche à droite de votre plaque, pour ne pas descendre vers la console d'action. */
+.seat--hero .seat__tag {
+  top: auto;
+  bottom: 8px;
+  left: calc(100% + 8px);
+  translate: 0 0;
+}
+
 .bet {
   position: absolute;
   translate: -50% -50%;
@@ -819,8 +833,18 @@ body::before {
   flex: 1 1 540px;
 }
 
+.action-bar--act > * {
+  min-width: 0;
+}
+
+/* Les tailles de mise peuvent rétrécir (colonnes égales, pour garder l'indicateur aligné). */
+.action-bar__sizing .rt-SegmentedControlRoot {
+  min-width: 0;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
 .action-bar--act .action-bar__buttons {
-  flex: 1 1 620px;
+  flex: 1 1 760px;
 }
 
 @media (max-height: 820px) and (min-width: 641px) {
@@ -829,7 +853,7 @@ body::before {
   }
 
   .table-area {
-    padding-block: 36px 50px;
+    padding-block: 12px 58px;
   }
 }
 
@@ -961,38 +985,6 @@ body::before {
 
 .reasons li::marker {
   color: var(--grass-9);
-}
-
-.hand-log {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  max-height: 240px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
-}
-
-.hand-log li {
-  padding: 4px 0 4px 10px;
-  border-left: 2px solid var(--gray-a4);
-}
-
-.log--board {
-  border-left-color: var(--grass-9) !important;
-  font-weight: 600;
-}
-
-.log--win {
-  border-left-color: var(--amber-9) !important;
-  color: var(--amber-11);
-  font-weight: 500;
-}
-
-.log--info {
-  color: var(--gray-11);
 }
 
 /* ——— Exercices ——— */
@@ -1862,9 +1854,13 @@ button.rg-cell {
 }
 
 .coach__practice.rt-Button {
-  grid-column: 2;
   justify-self: start;
-  margin-top: 4px;
+  max-width: 100%;
+  height: auto;
+  min-height: var(--base-button-height);
+  padding-block: 4px;
+  white-space: normal;
+  text-align: left;
 }
 
 .mistakes {
@@ -2099,6 +2095,10 @@ button.rg-cell {
 
   .action-bar__sizing .rt-SegmentedControlRoot {
     width: 100%;
+  }
+
+  .action-bar__sizing .rt-SegmentedControlItemLabel {
+    padding-inline: 4px;
   }
 
   .action-bar__slider {

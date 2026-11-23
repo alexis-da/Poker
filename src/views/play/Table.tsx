@@ -1,5 +1,5 @@
 import { Avatar, Badge, Card, Text } from '@radix-ui/themes';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { PlayingCard } from '../../components/PlayingCard';
 import GlareHover from '../../components/reactbits/GlareHover';
 import { PROFILE_BY_ID } from '../../engine/bot';
@@ -63,7 +63,7 @@ function Board({ board, highlight }: { board: CardT[]; highlight: CardT[] | null
     <div className="board" aria-label="Cartes communes">
       {Array.from({ length: 5 }, (_, i) => {
         const c = board[i];
-        if (c === undefined) return <span key={`slot${i}`} className="pcard pcard--board pcard--slot" aria-hidden="true" />;
+        if (c === undefined) return <span key={`slot${i}`} className="pcard pcard--md pcard--board pcard--slot" aria-hidden="true" />;
         const isNew = i >= firstNew;
         // Le turn et la river arrivent après une pause quand plusieurs rues sont déroulées d'un coup.
         const extra = i >= 3 ? (i - Math.max(firstNew, 2)) * 520 : 0;
@@ -84,14 +84,20 @@ function Board({ board, highlight }: { board: CardT[]; highlight: CardT[] | null
   );
 }
 
-/** Échelle des sièges : ils rétrécissent avec la table sur les petites fenêtres (hors format téléphone). */
+/** Échelle des sièges : ils rétrécissent avec la table sur les petites fenêtres. Elle dépend de la largeur
+ *  et de la hauteur de la table, pour que les sièges d'un même côté ne se touchent pas. */
 function useSeatScale(compact: boolean) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setScale(compact ? 1 : Math.max(0.6, Math.min(1, el.offsetWidth / 860)));
+    const update = () => {
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      setScale(compact ? Math.max(0.72, Math.min(1, w / 358, h / 418)) : Math.max(0.6, Math.min(1, w / 860, h / 494)));
+      placeBets(el);
+    };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
@@ -100,9 +106,91 @@ function useSeatScale(compact: boolean) {
   return [ref, scale] as const;
 }
 
+type Box = { l: number; t: number; r: number; b: number };
+
+/**
+ * Pose chaque mise sur le tapis, au plus près de l'avant de son joueur, sans recouvrir un siège, une étiquette,
+ * le pot, le tableau ou une autre mise. Les tailles sont lues hors animation (largeur de mise en page × échelle).
+ */
+function placeBets(stage: HTMLElement | null) {
+  if (!stage) return;
+  const bets = [...stage.querySelectorAll<HTMLElement>('.bet[data-seat]')];
+  const feltEl = stage.querySelector<HTMLElement>('.table__felt');
+  if (!bets.length || !feltEl) return;
+  const S = stage.getBoundingClientRect();
+  if (!S.width || !S.height) return;
+  const k = parseFloat(getComputedStyle(stage).getPropertyValue('--seat-scale')) || 1;
+  // Boîte d'un élément, centrée sur sa position affichée, à sa taille finale (les animations « pop » la réduisent).
+  const box = (el: HTMLElement, scaled: boolean): Box | null => {
+    const r = el.getBoundingClientRect();
+    const w = scaled ? el.offsetWidth * k : r.width;
+    const h = scaled ? el.offsetHeight * k : r.height;
+    if (!w || !h) return null;
+    const cx = (r.left + r.right) / 2 - S.left;
+    const cy = (r.top + r.bottom) / 2 - S.top;
+    return { l: cx - w / 2, t: cy - h / 2, r: cx + w / 2, b: cy + h / 2 };
+  };
+  const seats = new Map<number, Box>();
+  const obstacles: Box[] = [];
+  stage.querySelectorAll<HTMLElement>('.seat[data-seat]').forEach((el) => {
+    const b = box(el, false);
+    if (!b) return;
+    seats.set(Number(el.dataset.seat), b);
+    obstacles.push(b);
+  });
+  stage.querySelectorAll<HTMLElement>('.seat__tag, .table__center > *').forEach((el) => {
+    const b = box(el, true);
+    if (b) obstacles.push(b);
+  });
+  const F = feltEl.getBoundingClientRect();
+  const fx = (F.left + F.right) / 2 - S.left;
+  const fy = (F.top + F.bottom) / 2 - S.top;
+  const ax = F.width / 2 - 6;
+  const ay = F.height / 2 - 6;
+  const onFelt = (x: number, y: number) => ((x - fx) / ax) ** 2 + ((y - fy) / ay) ** 2 <= 1;
+  const gap = 4 * k;
+  const hits = (c: Box) => obstacles.some((o) => c.l < o.r + gap && o.l < c.r + gap && c.t < o.b + gap && o.t < c.b + gap);
+  const mid = (b: Box) => ({ x: (b.l + b.r) / 2, y: (b.t + b.b) / 2 });
+  const step = Math.max(4, Math.min(S.width, S.height) / 70);
+
+  for (const el of bets) {
+    const seatBox = seats.get(Number(el.dataset.seat));
+    if (!seatBox) continue;
+    const w = el.offsetWidth * k;
+    const h = el.offsetHeight * k;
+    const own = mid(seatBox);
+    // Point idéal : à mi-chemin entre le joueur et le centre de la table.
+    const ideal = { x: own.x + (fx - own.x) * 0.5, y: own.y + (fy - own.y) * 0.5 };
+    const others = [...seats.entries()].filter(([i]) => i !== Number(el.dataset.seat)).map(([, b]) => mid(b));
+    let best = null as { x: number; y: number; d: number } | null;
+    for (const strict of [true, false]) {
+      for (let y = h / 2; y <= S.height - h / 2; y += step) {
+        for (let x = w / 2; x <= S.width - w / 2; x += step) {
+          const d = Math.hypot(x - ideal.x, y - ideal.y);
+          if (best && d >= best.d) continue;
+          const c = { l: x - w / 2, t: y - h / 2, r: x + w / 2, b: y + h / 2 };
+          if (!onFelt(c.l, c.t) || !onFelt(c.r, c.t) || !onFelt(c.l, c.b) || !onFelt(c.r, c.b)) continue;
+          if (hits(c)) continue;
+          // Plus près de son joueur que de tout autre, pour qu'on sache à qui est la mise.
+          const dOwn = Math.hypot(x - own.x, y - own.y);
+          if (strict && others.some((o) => Math.hypot(x - o.x, y - o.y) < dOwn)) continue;
+          best = { x, y, d };
+        }
+      }
+      if (best) break;
+    }
+    if (!best) continue;
+    el.style.left = `${((best.x / S.width) * 100).toFixed(2)}%`;
+    el.style.top = `${((best.y / S.height) * 100).toFixed(2)}%`;
+    obstacles.push({ l: best.x - w / 2, t: best.y - h / 2, r: best.x + w / 2, b: best.y + h / 2 });
+  }
+}
+
 export function Table({ game, thinking, thinkMs }: Props) {
   const compact = useCompact();
   const [stageRef, seatScale] = useSeatScale(compact);
+  // Après chaque rendu, avant l'affichage : replacer les mises selon ce qui est réellement à l'écran.
+  useLayoutEffect(() => placeBets(stageRef.current));
   const n = game.players.length;
   const bb = game.bigBlind;
   const pot = potTotal(game);
@@ -186,6 +274,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
                 won ? 'seat--won' : '',
               ].join(' ')}
               style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
+              data-seat={i}
             >
               <div className="seat__cards">
                 {p.isHuman && p.hole.length > 0 ? (
@@ -247,7 +336,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
               )}
             </div>
             {p.bet > 0 && !result && (
-              <span className="bet" style={{ left: `${bt.x}%`, top: `${bt.y}%` }}>
+              <span className="bet" data-seat={i} style={{ left: `${bt.x}%`, top: `${bt.y}%` }}>
                 <span className="chip-dot" aria-hidden="true" />
                 {formatBB(p.bet, bb)}
               </span>

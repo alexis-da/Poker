@@ -12,7 +12,7 @@ import {
   Switch,
   Text,
 } from '@radix-ui/themes';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BOT_PROFILES, decideBot, PROFILE_BY_ID } from '../../engine/bot';
 import { getAdvice, gradeDecision } from '../../engine/coach';
 import { getLegalActions, type Action } from '../../engine/game';
@@ -203,7 +203,6 @@ export function Play() {
   const [settings] = useSettings();
   const game = session.game;
   const [confirmLeave, setConfirmLeave] = useState(false);
-  const logRef = useRef<HTMLOListElement>(null);
 
   const heroIndex = game ? game.players.findIndex((p) => p.isHuman) : -1;
   const heroTurn = !!game && !game.result && game.toAct === heroIndex;
@@ -249,11 +248,6 @@ export function Play() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [game, over]);
-
-  useEffect(() => {
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [game?.log.length]);
 
   if (!game) return <Setup />;
 
@@ -378,18 +372,6 @@ export function Play() {
           heroTurn={heroTurn}
           bigBlind={game.bigBlind}
         />
-        <Card size="3">
-          <Text as="p" size="2" weight="bold" mb="3">
-            Historique de la main
-          </Text>
-          <ol className="hand-log" ref={logRef}>
-            {game.log.map((l, i) => (
-              <li key={i} className={`log--${l.kind}`}>
-                {l.text}
-              </li>
-            ))}
-          </ol>
-        </Card>
         <Card size="3">
           <Text as="p" size="2" weight="bold" mb="3">
             Adversaires

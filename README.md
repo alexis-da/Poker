@@ -75,9 +75,11 @@ L’interface est construite avec des bibliothèques conçues par des designers 
 
 L’écran de jeu garde les codes de lisibilité des salles en ligne : cartes à gros index en 4 couleurs,
 tapis en gros chiffres, mises devant chaque joueur, barre de temps sous le joueur qui parle, gros boutons
-d’action. L’écran de jeu tient dans la fenêtre sans défilement : la table se réduit selon la place
-disponible (hauteur et largeur), les joueurs se réduisent avec elle, et la console d’action reste
-visible sous la table, de l’écran 1280 × 720 au téléphone.
+d’action. L’écran de jeu tient dans la fenêtre sans défilement : la table, ovale au format 2 : 1, occupe
+toute la largeur disponible (jusqu’à 1720 px de page sur grand écran), les joueurs se réduisent avec elle,
+et la console d’action reste visible sous la table, de l’écran 1280 × 720 au téléphone. Les mises sont
+posées après chaque rendu à l’endroit libre le plus proche de leur joueur, sans recouvrir sièges,
+étiquettes, pot ni tableau.
 
 Deux styles de cartes (réglage à la table) :
 - **Gros index** (par défaut), dessinées par l’application, avec ou sans jeu 4 couleurs ;
