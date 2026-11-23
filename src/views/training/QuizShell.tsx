@@ -1,6 +1,38 @@
-import { Badge, Button, Card, Flex, Heading, Kbd, Link, Text } from '@radix-ui/themes';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Cross2Icon, TargetIcon } from '@radix-ui/react-icons';
+import { Badge, Button, Callout, Card, Flex, Heading, Kbd, Link, Text } from '@radix-ui/themes';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { recordQuiz, useAppData, type QuizId } from '../../store/store';
+import { logEvent } from '../../training/db';
+import { takeFocus } from '../../training/focus';
+import { TAG_LABELS, type FocusQuiz, type SkillId } from '../../training/model';
+
+/** Variante ciblée passée par une recommandation (lue une fois, à l'ouverture de l'exercice). */
+export function useQuizFocus(quiz: FocusQuiz) {
+  const [focus, setFocus] = useState<string | null>(() => takeFocus(quiz));
+  return [focus, () => setFocus(null)] as const;
+}
+
+/** Appelle `fn` quand `value` change (pas au premier rendu). */
+export function useOnChange(value: unknown, fn: () => void) {
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    fn();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+}
+
+/** Compétence travaillée par chaque exercice. */
+export const QUIZ_SKILL: Record<QuizId, SkillId> = {
+  preflop: 'preflop-open',
+  outs: 'outs',
+  potodds: 'pot-odds',
+  winner: 'showdown',
+  equity: 'equity',
+};
 
 export interface QuizMeta {
   id: QuizId;
@@ -60,10 +92,12 @@ interface ShellProps {
   onNext: () => void;
   children: ReactNode;
   toolbar?: ReactNode;
+  /** Variante ciblée par une recommandation, avec le moyen d'en sortir. */
+  focus?: { value: string; onClear: () => void } | null;
 }
 
 /** Cadre commun des exercices : en-tête, score, bouton « question suivante ». */
-export function QuizShell({ meta, answered, onNext, children, toolbar }: ShellProps) {
+export function QuizShell({ meta, answered, onNext, children, toolbar, focus }: ShellProps) {
   const stats = useAppData().quizzes[meta.id];
   const acc = stats.attempts ? Math.round((stats.correct / stats.attempts) * 100) : null;
   const recent = stats.recent.slice(-20);
@@ -122,6 +156,19 @@ export function QuizShell({ meta, answered, onNext, children, toolbar }: ShellPr
           )}
         </Card>
       </header>
+      {focus && (
+        <Callout.Root color="grass" variant="surface" size="1" className="focus-banner">
+          <Callout.Icon>
+            <TargetIcon />
+          </Callout.Icon>
+          <Callout.Text>
+            Entraînement ciblé sur <strong>{TAG_LABELS[focus.value] ?? focus.value}</strong>, d’après vos erreurs récentes.
+          </Callout.Text>
+          <Button size="1" variant="soft" color="gray" onClick={focus.onClear}>
+            <Cross2Icon /> Tout réviser
+          </Button>
+        </Callout.Root>
+      )}
       {toolbar}
       <div className="quiz__body">{children}</div>
       {answered && (
@@ -135,8 +182,11 @@ export function QuizShell({ meta, answered, onNext, children, toolbar }: ShellPr
   );
 }
 
-/** Gère l'état question / réponse d'un exercice. */
-export function useQuiz<Q, A>(id: QuizId, generate: () => Q, isCorrect: (q: Q, a: A) => boolean) {
+/** Ce que l'historique retient d'une réponse : variante travaillée et résumé de l'erreur. */
+export type Describe<Q, A> = (q: Q, a: A) => { tag?: string; note: string };
+
+/** Gère l'état question / réponse d'un exercice et l'enregistre dans l'historique. */
+export function useQuiz<Q, A>(id: QuizId, generate: () => Q, isCorrect: (q: Q, a: A) => boolean, describe?: Describe<Q, A>) {
   const [question, setQuestion] = useState<Q>(generate);
   const [answer, setAnswer] = useState<A | null>(null);
   const answered = answer !== null;
@@ -144,7 +194,10 @@ export function useQuiz<Q, A>(id: QuizId, generate: () => Q, isCorrect: (q: Q, a
   const submit = (a: A) => {
     if (answered) return;
     setAnswer(a);
-    recordQuiz(id, isCorrect(question, a));
+    const ok = isCorrect(question, a);
+    recordQuiz(id, ok);
+    const d = describe?.(question, a);
+    logEvent({ t: Date.now(), src: 'quiz', skill: QUIZ_SKILL[id], ok: ok ? 1 : 0, tag: d?.tag, note: ok ? undefined : d?.note });
   };
   const next = () => {
     setQuestion(generate());

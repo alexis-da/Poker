@@ -1,22 +1,25 @@
 import { DataList, Text } from '@radix-ui/themes';
 import { CardRow, InlineCards } from '../../components/PlayingCard';
 import { hitProbability, ruleOf2And4 } from '../../engine/outs';
-import { generateOuts, type OutsQuestion } from '../../trainers/generators';
-import { ChoiceButton, Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { drawKind, generateOuts, type DrawKind, type OutsQuestion } from '../../trainers/generators';
+import { ChoiceButton, Feedback, Hints, QUIZZES, QuizShell, useOnChange, useQuiz, useQuizFocus } from './QuizShell';
 
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
 export function OutsQuiz() {
   const meta = QUIZZES[1];
+  const [focus, clearFocus] = useQuizFocus('outs');
   const { question: q, answer, answered, correct, submit, next } = useQuiz<OutsQuestion, number>(
     'outs',
-    () => generateOuts(),
+    () => generateOuts(Math.random, (focus as DrawKind | null) ?? undefined),
     (q, a) => q.correct === a,
+    (q, a) => ({ tag: drawKind(q.outs), note: `${q.drawName} : ${q.correct} outs (réponse ${a})` }),
   );
+  useOnChange(focus, next);
   const onFlop = q.board.length === 3;
   const unseen = q.outs.unseen;
   return (
-    <QuizShell meta={meta} answered={answered} onNext={next}>
+    <QuizShell meta={meta} answered={answered} onNext={next} focus={focus ? { value: focus, onClear: clearFocus } : null}>
       <div className="quiz-grid">
         <div className="felt-card">
           <span className="felt-label">{onFlop ? 'Flop' : 'Turn'}</span>

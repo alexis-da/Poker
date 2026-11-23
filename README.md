@@ -1,7 +1,8 @@
 # Coach Hold’em
 
 Application web d’entraînement au **Texas Hold’em No-Limit** (6-max), entièrement en français.
-Elle fonctionne dans le navigateur, sans serveur ni compte : les statistiques sont enregistrées sur l’appareil.
+Elle fonctionne dans le navigateur, sans serveur ni compte : les statistiques et l’historique d’entraînement
+sont enregistrés sur l’appareil (ou dans votre compte claude.ai quand l’application y est publiée).
 
 ## Fonctionnalités
 
@@ -35,7 +36,27 @@ au flop et après) et tableaux de ranges 13 × 13 avec éditeur de range.
 principes de stratégie, glossaire.
 
 **Statistiques** — mains jouées, gain net et BB/100, VPIP, PFR, courbe de gains, qualité des
-décisions selon le coach, réussite par exercice.
+décisions selon le coach, réussite par exercice, points faibles et erreurs récentes.
+
+**Recommandations** — chaque réponse aux exercices et chaque décision jugée par le coach est enregistrée
+dans une petite base de données (compétence, juste/discutable/erreur, variante, date). L’application en
+tire les exercices à faire en priorité :
+
+- le score d’une compétence combine son taux d’erreur sur 30 jours, la récence (une erreur perd la moitié
+  de son poids en 7 jours) et le nombre d’essais (une erreur isolée ne suffit pas) ;
+- quand les erreurs se concentrent sur une variante (UTG, tirages ventraux, kickers, tapis…), l’exercice
+  s’ouvre **ciblé** sur cette variante, avec un bandeau « Entraînement ciblé » pour revenir au mélange ;
+- les décisions en partie sont classées par situation : ouverture préflop, défense face à une relance,
+  cotes du pot face à une mise, mises de valeur et bluffs ;
+- les compétences jamais travaillées sont proposées en « À découvrir ».
+
+Les recommandations apparaissent sur l’accueil, en tête des exercices, dans les statistiques
+(« Points faibles ») et sous le commentaire du coach après une erreur à la table.
+
+Stockage : IndexedDB du navigateur via [Dexie](https://dexie.org) (Apache-2.0), 120 jours conservés.
+Dans la version publiée sur claude.ai, l’historique va dans la base privée de votre compte
+(`data/users/<id>`, visible de vous seul), regroupé en un document par jour et par appareil, et
+l’historique local existant y est importé à la première ouverture. Il s’efface depuis les statistiques.
 
 ## Interface
 
@@ -54,7 +75,9 @@ L’interface est construite avec des bibliothèques conçues par des designers 
 
 L’écran de jeu garde les codes de lisibilité des salles en ligne : cartes à gros index en 4 couleurs,
 tapis en gros chiffres, mises devant chaque joueur, barre de temps sous le joueur qui parle, gros boutons
-d’action. Sur téléphone, la table et la console d’action tiennent sur un seul écran.
+d’action. L’écran de jeu tient dans la fenêtre sans défilement : la table se réduit selon la place
+disponible (hauteur et largeur), les joueurs se réduisent avec elle, et la console d’action reste
+visible sous la table, de l’écran 1280 × 720 au téléphone.
 
 Deux styles de cartes (réglage à la table) :
 - **Gros index** (par défaut), dessinées par l’application, avec ou sans jeu 4 couleurs ;
@@ -91,6 +114,7 @@ src/data/        ranges d’ouverture 6-max et table d’équité préflop (169 
 src/trainers/    générateurs de questions des exercices
 src/views/       écrans (React)
 src/store/       statistiques et réglages (localStorage)
+src/training/    historique d’entraînement (Dexie ou base du compte) et recommandations
 tests/           tests unitaires et simulations de milliers de mains
 scripts/         génération de la table préflop, build en page unique
 ```

@@ -1,11 +1,11 @@
 import { Button, Callout, Flex, Kbd, SegmentedControl, Text } from '@radix-ui/themes';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { CardRow } from '../../components/PlayingCard';
 import { RangeGrid } from '../../components/RangeGrid';
 import { HAND_TOP_PERCENT, POSITION_INFO, RFI_SETS, type Position } from '../../data/charts';
 import { rangePercent } from '../../engine/ranges';
 import { generatePreflop, RFI_POSITIONS, type PreflopQuestion, type RfiPosition } from '../../trainers/generators';
-import { Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { Feedback, Hints, QUIZZES, QuizShell, useQuiz, useQuizFocus } from './QuizShell';
 
 const RING: Position[] = ['UTG', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
@@ -34,13 +34,24 @@ export function PositionRing({ hero }: { hero: Position }) {
 
 export function PreflopQuiz() {
   const meta = QUIZZES[0];
-  const [filter, setFilter] = useState<RfiPosition | 'all'>('all');
+  const [focus, clearFocus] = useQuizFocus('preflop');
+  const [filter, setFilter] = useState<RfiPosition | 'all'>(() => (focus as RfiPosition | null) ?? 'all');
   const generate = useCallback(() => generatePreflop(Math.random, filter === 'all' ? undefined : filter), [filter]);
-  const quiz = useQuiz<PreflopQuestion, 'raise' | 'fold'>('preflop', generate, (q, a) => q.correct === a);
+  const quiz = useQuiz<PreflopQuestion, 'raise' | 'fold'>(
+    'preflop',
+    generate,
+    (q, a) => q.correct === a,
+    (q) => ({ tag: q.position, note: `${q.handClass} en ${q.position} : il fallait ${q.correct === 'raise' ? 'ouvrir' : 'se coucher'}` }),
+  );
   const { question: q, answer, answered, correct, submit, next } = quiz;
 
   // Nouvelle question quand on change de filtre.
+  const firstFilter = useRef(true);
   useEffect(() => {
+    if (firstFilter.current) {
+      firstFilter.current = false;
+      return;
+    }
     next();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
@@ -65,6 +76,17 @@ export function PreflopQuiz() {
       meta={meta}
       answered={answered}
       onNext={next}
+      focus={
+        focus && filter === focus
+          ? {
+              value: focus,
+              onClear: () => {
+                clearFocus();
+                setFilter('all');
+              },
+            }
+          : null
+      }
       toolbar={
         <div className="scroll-x">
         <SegmentedControl.Root value={filter} onValueChange={(v) => setFilter(v as RfiPosition | 'all')} aria-label="Position travaillée">

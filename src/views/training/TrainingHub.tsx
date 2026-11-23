@@ -2,6 +2,7 @@ import { ArrowRightIcon } from '@radix-ui/react-icons';
 import { Badge, Card, Flex, Heading, Progress, Text } from '@radix-ui/themes';
 import { useAppData } from '../../store/store';
 import { QUIZZES } from './QuizShell';
+import { Recommendations } from './Recommendations';
 
 export function TrainingHub() {
   const data = useAppData();
@@ -16,6 +17,15 @@ export function TrainingHub() {
           Des séries courtes pour automatiser les calculs que l’on fait à chaque main. Chaque réponse est corrigée et expliquée.
         </Text>
       </header>
+      <section className="section">
+        <Heading size="5" as="h2">
+          Recommandé d’après vos erreurs
+        </Heading>
+        <Recommendations />
+      </section>
+      <Heading size="5" as="h2">
+        Tous les exercices
+      </Heading>
       <div className="module-grid">
         {QUIZZES.map((q) => {
           const s = data.quizzes[q.id];

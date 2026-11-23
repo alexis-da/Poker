@@ -1,19 +1,25 @@
 import { Text } from '@radix-ui/themes';
 import { CardRow } from '../../components/PlayingCard';
 import { generateEquity, type EquityQuestion } from '../../trainers/generators';
-import { ChoiceButton, Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { ChoiceButton, Feedback, Hints, QUIZZES, QuizShell, useOnChange, useQuiz, useQuizFocus } from './QuizShell';
 
 export function EquityQuiz() {
   const meta = QUIZZES[4];
+  const [focus, clearFocus] = useQuizFocus('equity');
   const { question: q, answer, answered, correct, submit, next } = useQuiz<EquityQuestion, number>(
     'equity',
-    () => generateEquity(),
+    () => generateEquity(Math.random, (focus as 'preflop' | 'flop' | null) ?? undefined),
     (q, a) => q.correctIndex === a,
+    (q, a) => ({
+      tag: q.board.length ? 'flop' : 'preflop',
+      note: `Équité de la main A : ${Math.round(q.equity * 100)} % (réponse ${q.choices[a]} %)`,
+    }),
   );
+  useOnChange(focus, next);
   const eqA = Math.round(q.equity * 1000) / 10;
   const eqB = Math.round((1 - q.equity) * 1000) / 10;
   return (
-    <QuizShell meta={meta} answered={answered} onNext={next}>
+    <QuizShell meta={meta} answered={answered} onNext={next} focus={focus ? { value: focus, onClear: clearFocus } : null}>
       <div className="quiz-grid">
         <div className="felt-card">
           <span className="felt-label">{q.board.length ? 'Flop' : 'Préflop, tapis engagés'}</span>

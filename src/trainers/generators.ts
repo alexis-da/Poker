@@ -55,9 +55,20 @@ export function drawName(outs: OutsResult): string {
   return 'Tirage quinte ventrale';
 }
 
+export type DrawKind = 'couleur' | 'quinte-ouverte' | 'ventrale' | 'combo';
+
+/** Famille du tirage, pour cibler les exercices. */
+export function drawKind(outs: OutsResult): DrawKind {
+  const flush = outs.groups.find((g) => g.category === Cat.FLUSH)?.cards.length ?? 0;
+  const straight = outs.groups.find((g) => g.category === Cat.STRAIGHT)?.cards.length ?? 0;
+  if (flush > 0 && straight > 0) return 'combo';
+  if (flush > 0) return 'couleur';
+  return outs.outs.length >= 8 ? 'quinte-ouverte' : 'ventrale';
+}
+
 /** Génère une main avec un tirage quinte ou couleur (4 à 15 outs) et sans main faite au-delà d'un brelan. */
-export function generateDrawSpot(rng: Rng = defaultRng, street?: 'flop' | 'turn'): DrawSpot {
-  for (let tries = 0; tries < 5000; tries++) {
+export function generateDrawSpot(rng: Rng = defaultRng, street?: 'flop' | 'turn', kind?: DrawKind): DrawSpot {
+  for (let tries = 0; tries < 40000; tries++) {
     const st = street ?? (rng() < 0.6 ? 'flop' : 'turn');
     const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
     let hole: Card[];
@@ -76,6 +87,7 @@ export function generateDrawSpot(rng: Rng = defaultRng, street?: 'flop' | 'turn'
     const outs = drawOuts(hole, board);
     const n = outs.outs.length;
     if (n < 4 || n > 15) continue;
+    if (kind && drawKind(outs) !== kind) continue;
     return { hole, board, outs, drawName: drawName(outs) };
   }
   throw new Error('Impossible de générer un tirage');
@@ -88,8 +100,8 @@ export interface OutsQuestion extends DrawSpot {
   correct: number;
 }
 
-export function generateOuts(rng: Rng = defaultRng): OutsQuestion {
-  const spot = generateDrawSpot(rng);
+export function generateOuts(rng: Rng = defaultRng, kind?: DrawKind): OutsQuestion {
+  const spot = generateDrawSpot(rng, undefined, kind);
   const correct = spot.outs.outs.length;
   const pool = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].filter((x) => x !== correct);
   const near = shuffle(pool.filter((x) => Math.abs(x - correct) <= 5), rng).slice(0, 3);
@@ -114,11 +126,11 @@ export interface PotOddsQuestion extends DrawSpot {
 
 const BET_FRACTIONS = [0.25, 0.33, 0.5, 0.66, 0.75, 1, 1.25, 1.5];
 
-export function generatePotOdds(rng: Rng = defaultRng): PotOddsQuestion {
+export function generatePotOdds(rng: Rng = defaultRng, mode?: 'tapis' | 'une-carte'): PotOddsQuestion {
   for (let tries = 0; tries < 200; tries++) {
-    const spot = generateDrawSpot(rng);
+    const spot = generateDrawSpot(rng, mode === 'tapis' ? 'flop' : undefined);
     const onFlop = spot.board.length === 3;
-    const allIn = onFlop && rng() < 0.45;
+    const allIn = mode === 'tapis' ? true : mode === 'une-carte' ? false : onFlop && rng() < 0.45;
     const cardsToCome: 1 | 2 = allIn ? 2 : 1;
     const unseen = 52 - 2 - spot.board.length;
     const equity = hitProbability(spot.outs.outs.length, unseen, cardsToCome);
@@ -150,8 +162,10 @@ export interface WinnerQuestion {
 
 const QUIZ_NAMES = ['Joueur A', 'Joueur B', 'Joueur C'];
 
-export function generateWinner(rng: Rng = defaultRng): WinnerQuestion {
-  for (let tries = 0; tries < 500; tries++) {
+export type WinnerMode = 'kicker' | 'partage' | 'categorie';
+
+export function generateWinner(rng: Rng = defaultRng, mode?: WinnerMode): WinnerQuestion {
+  for (let tries = 0; tries < 20000; tries++) {
     const n = rng() < 0.6 ? 2 : 3;
     const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
     const board = deck.slice(0, 5);
@@ -163,9 +177,15 @@ export function generateWinner(rng: Rng = defaultRng): WinnerQuestion {
     }
     const sorted = players.map((p) => p.score).sort((a, b) => b - a);
     const sameCategory = categoryOf(sorted[0]) === categoryOf(sorted[1]);
-    // Deux fois sur trois, on garde une situation serrée (même catégorie de main).
-    if (!sameCategory && rng() < 0.65) continue;
-    if (categoryOf(sorted[0]) === Cat.HIGH_CARD && rng() < 0.7) continue;
+    const split = sorted[0] === sorted[1];
+    if (mode === 'partage' && !split) continue;
+    if (mode === 'kicker' && (!sameCategory || split)) continue;
+    if (mode === 'categorie' && sameCategory) continue;
+    if (!mode) {
+      // Deux fois sur trois, on garde une situation serrée (même catégorie de main).
+      if (!sameCategory && rng() < 0.65) continue;
+      if (categoryOf(sorted[0]) === Cat.HIGH_CARD && rng() < 0.7) continue;
+    }
     const winners = players.map((p, i) => (p.score === sorted[0] ? i : -1)).filter((i) => i >= 0);
     return { board, players, winners };
   }
@@ -209,9 +229,9 @@ export function classifyMatchup(a: Card[], b: Card[]): string | null {
   return null;
 }
 
-export function generateEquity(rng: Rng = defaultRng): EquityQuestion {
+export function generateEquity(rng: Rng = defaultRng, street?: 'preflop' | 'flop'): EquityQuestion {
   const deck = shuffle(Array.from({ length: 52 }, (_, i) => i), rng);
-  const flop = rng() < 0.45;
+  const flop = street ? street === 'flop' : rng() < 0.45;
   let a = deck.slice(0, 2);
   let b = deck.slice(2, 4);
   if (!flop && rng() < 0.5) {

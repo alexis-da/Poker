@@ -84,8 +84,25 @@ function Board({ board, highlight }: { board: CardT[]; highlight: CardT[] | null
   );
 }
 
+/** Échelle des sièges : ils rétrécissent avec la table sur les petites fenêtres (hors format téléphone). */
+function useSeatScale(compact: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setScale(compact ? 1 : Math.max(0.6, Math.min(1, el.offsetWidth / 860)));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [compact]);
+  return [ref, scale] as const;
+}
+
 export function Table({ game, thinking, thinkMs }: Props) {
   const compact = useCompact();
+  const [stageRef, seatScale] = useSeatScale(compact);
   const n = game.players.length;
   const bb = game.bigBlind;
   const pot = potTotal(game);
@@ -113,7 +130,11 @@ export function Table({ game, thinking, thinkMs }: Props) {
   }
 
   return (
-    <div className={`table-stage seats-${n} ${compact ? 'is-compact' : ''}`}>
+    <div
+      ref={stageRef}
+      className={`table-stage seats-${n} ${compact ? 'is-compact' : ''}`}
+      style={{ '--seat-scale': seatScale.toFixed(3) } as CSSProperties}
+    >
       <div className="table">
         <div className="table__rail">
           <div className="table__felt">

@@ -4,6 +4,8 @@ import type { Grade } from '../../engine/coach';
 import { applyAction, createGame, startHand, type Action, type GameState, type SeatConfig } from '../../engine/game';
 import { pick } from '../../engine/random';
 import { recordCoach, recordHand } from '../../store/store';
+import { logEvent } from '../../training/db';
+import type { TrainingEvent } from '../../training/model';
 
 export const SMALL_BLIND = 5;
 export const BIG_BLIND = 10;
@@ -22,6 +24,8 @@ export interface FeedbackEntry {
   action: string;
   street: string;
   hand: number;
+  /** Événement enregistré pour cette décision (compétence, variante). */
+  event: TrainingEvent | null;
 }
 
 /** Un joueur éliminé : pas de recave, il quitte la partie avec sa place. */
@@ -175,16 +179,17 @@ function commit(game: GameState) {
   });
 }
 
-export function heroAct(action: Action, grade: Grade | null, label: string) {
+export function heroAct(action: Action, grade: Grade | null, label: string, event: TrainingEvent | null = null) {
   const g = session.game;
   if (!g) return;
   const next = applyAction(g, action);
+  if (event) logEvent(event);
   if (grade) {
     recordCoach(grade.verdict);
     session = {
       ...session,
       coach: { ...session.coach, [grade.verdict]: session.coach[grade.verdict] + 1 },
-      feedback: { grade, action: label, street: g.street, hand: g.handNumber },
+      feedback: { grade, action: label, street: g.street, hand: g.handNumber, event },
     };
   }
   commit(next);

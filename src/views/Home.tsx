@@ -7,6 +7,7 @@ import { parseCards } from '../engine/cards';
 import { useAppData } from '../store/store';
 import { useSession } from './play/session';
 import { QUIZZES } from './training/QuizShell';
+import { Recommendations } from './training/Recommendations';
 
 const HERO_CARDS = parseCards('AsKh');
 const HERO_BOARD = parseCards('Qd Js 7c Th');
@@ -87,6 +88,13 @@ export function Home() {
             </Card>
           </div>
         </div>
+      </section>
+
+      <section className="section">
+        <Heading size="5" as="h2">
+          Recommandé pour vous
+        </Heading>
+        <Recommendations />
       </section>
 
       <section className="section">

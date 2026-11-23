@@ -5,6 +5,8 @@ import { InlineCards } from '../../components/PlayingCard';
 import Counter from '../../components/reactbits/Counter';
 import SpotlightCard from '../../components/reactbits/SpotlightCard';
 import { RECO_LABELS, type CoachAdvice } from '../../engine/coach';
+import { startPractice } from '../../training/focus';
+import { FOCUSABLE, SKILLS } from '../../training/model';
 import { formatBB } from '../../engine/game';
 import { useAppearance } from '../../appearance';
 import type { FeedbackEntry } from './session';
@@ -107,6 +109,22 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
               Vous : {feedback.action}
             </Text>
           </Callout.Text>
+          {feedback.event && feedback.grade.verdict !== 'bon' && (
+            <Button
+              size="1"
+              variant="soft"
+              color={VERDICT_UI[feedback.grade.verdict].color}
+              className="coach__practice"
+              onClick={() => {
+                const ev = feedback.event!;
+                const info = SKILLS[ev.skill];
+                const focus = info.quiz && ev.tag && FOCUSABLE[info.quiz].includes(ev.tag) ? { quiz: info.quiz, value: ev.tag } : null;
+                startPractice(info.route, focus);
+              }}
+            >
+              <LightningBoltIcon /> S’entraîner : {SKILLS[feedback.event.skill].label.toLowerCase()}
+            </Button>
+          )}
         </Callout.Root>
       )}
 

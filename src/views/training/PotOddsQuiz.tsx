@@ -4,18 +4,24 @@ import { CardRow } from '../../components/PlayingCard';
 import { ruleOf2And4 } from '../../engine/outs';
 import { generatePotOdds, type PotOddsQuestion } from '../../trainers/generators';
 import { EquityMeter } from '../play/CoachPanel';
-import { Feedback, Hints, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { Feedback, Hints, QUIZZES, QuizShell, useOnChange, useQuiz, useQuizFocus } from './QuizShell';
 
 const n = (x: number) => x.toLocaleString('fr-FR', { maximumFractionDigits: 1 });
 const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 
 export function PotOddsQuiz() {
   const meta = QUIZZES[2];
+  const [focus, clearFocus] = useQuizFocus('potodds');
   const { question: q, answer, answered, correct, submit, next } = useQuiz<PotOddsQuestion, 'call' | 'fold'>(
     'potodds',
-    () => generatePotOdds(),
+    () => generatePotOdds(Math.random, (focus as 'tapis' | 'une-carte' | null) ?? undefined),
     (q, a) => q.correct === a,
+    (q) => ({
+      tag: q.allIn ? 'tapis' : 'une-carte',
+      note: `${q.drawName}, ${n(q.bet)} BB à payer dans un pot de ${n(q.pot)} BB : il fallait ${q.correct === 'call' ? 'suivre' : 'se coucher'}`,
+    }),
   );
+  useOnChange(focus, next);
 
   useEffect(() => {
     if (answered) return;
@@ -35,7 +41,7 @@ export function PotOddsQuiz() {
     stateOf(a) === 'right' ? 'grass' : stateOf(a) === 'wrong' ? 'tomato' : idle;
 
   return (
-    <QuizShell meta={meta} answered={answered} onNext={next}>
+    <QuizShell meta={meta} answered={answered} onNext={next} focus={focus ? { value: focus, onClear: clearFocus } : null}>
       <div className="quiz-grid">
         <div className="felt-card">
           <span className="felt-label">{q.board.length === 3 ? 'Flop' : 'Turn'}</span>

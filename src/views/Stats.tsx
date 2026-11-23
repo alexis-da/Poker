@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Counter from '../components/reactbits/Counter';
 import { resetStats, useAppData } from '../store/store';
 import { QUIZZES } from './training/QuizShell';
+import { TrainingHistory } from './TrainingHistory';
 
 const pctNum = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
 
@@ -182,6 +183,8 @@ export function Stats() {
           </Table.Root>
         </Card>
       </section>
+
+      <TrainingHistory />
 
       <section className="section">
         <Heading size="5" as="h2">

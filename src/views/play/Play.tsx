@@ -17,6 +17,7 @@ import { BOT_PROFILES, decideBot, PROFILE_BY_ID } from '../../engine/bot';
 import { getAdvice, gradeDecision } from '../../engine/coach';
 import { getLegalActions, type Action } from '../../engine/game';
 import { useSettings } from '../../store/store';
+import { classifyDecision } from '../../training/classify';
 import { ActionBar } from './ActionBar';
 import { CoachPanel } from './CoachPanel';
 import { botAct, heroAct, leaveTable, newTable, nextHand, placeLabel, replay, useSession } from './session';
@@ -259,7 +260,8 @@ export function Play() {
   const hero = game.players[heroIndex];
   const onHeroAction = (action: Action, label: string) => {
     const grade = advice && settings.coachMode !== 'off' ? gradeDecision(advice, action) : null;
-    heroAct(action, grade, label);
+    const event = advice && grade ? classifyDecision(advice, action, grade) : null;
+    heroAct(action, grade, label, event);
   };
   const opponents = game.players.filter((p) => !p.isHuman);
   const street = STREET_FR[game.street];
@@ -311,7 +313,9 @@ export function Play() {
           )}
         </div>
 
-        <Table game={game} thinking={thinking} thinkMs={thinkMs} />
+        <div className="table-area">
+          <Table game={game} thinking={thinking} thinkMs={thinkMs} />
+        </div>
 
         <div className="console">
           {heroTurn && legal ? (

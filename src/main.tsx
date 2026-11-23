@@ -12,6 +12,7 @@ import '@radix-ui/themes/components.css';
 import '@radix-ui/themes/utilities.css';
 import { App } from './App';
 import { useAppearance, useAppearanceEffects } from './appearance';
+import { initTraining } from './training/db';
 import './styles.css';
 
 function Root() {
@@ -23,6 +24,8 @@ function Root() {
     </Theme>
   );
 }
+
+void initTraining();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

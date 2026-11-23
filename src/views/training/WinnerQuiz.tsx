@@ -1,8 +1,8 @@
 import { Button, Text } from '@radix-ui/themes';
 import { CardRow } from '../../components/PlayingCard';
 import { categoryOf, describeScoreLong } from '../../engine/evaluator';
-import { generateWinner, type WinnerQuestion } from '../../trainers/generators';
-import { Feedback, QUIZZES, QuizShell, useQuiz } from './QuizShell';
+import { generateWinner, type WinnerMode, type WinnerQuestion } from '../../trainers/generators';
+import { Feedback, QUIZZES, QuizShell, useOnChange, useQuiz, useQuizFocus } from './QuizShell';
 
 type Answer = number | 'split';
 
@@ -13,17 +13,27 @@ function isRight(q: WinnerQuestion, a: Answer): boolean {
 
 export function WinnerQuiz() {
   const meta = QUIZZES[3];
+  const [focus, clearFocus] = useQuizFocus('winner');
   const { question: q, answer, answered, correct, submit, next } = useQuiz<WinnerQuestion, Answer>(
     'winner',
-    () => generateWinner(),
+    () => generateWinner(Math.random, (focus as WinnerMode | null) ?? undefined),
     isRight,
+    (q) => {
+      const w = q.players[q.winners[0]];
+      const same = q.players.filter((p) => categoryOf(p.score) === categoryOf(w.score)).length > 1;
+      return {
+        tag: q.winners.length > 1 ? 'partage' : same ? 'kicker' : 'categorie',
+        note: q.winners.length > 1 ? `Il y avait partage (${w.handName})` : `${w.name} gagnait avec ${w.handName}`,
+      };
+    },
   );
+  useOnChange(focus, next);
   const split = q.winners.length > 1;
   const top = q.players[q.winners[0]];
   const sameCat = q.players.filter((p) => categoryOf(p.score) === categoryOf(top.score)).length > 1;
 
   return (
-    <QuizShell meta={meta} answered={answered} onNext={next}>
+    <QuizShell meta={meta} answered={answered} onNext={next} focus={focus ? { value: focus, onClear: clearFocus } : null}>
       <div className="felt-card felt-card--wide">
         <span className="felt-label">Board</span>
         <CardRow cards={q.board} size="md" highlight={answered ? top.best : undefined} />

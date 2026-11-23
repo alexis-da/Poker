@@ -9,6 +9,9 @@ import { handClassOf } from './ranges';
 
 export type Recommendation = 'fold' | 'check' | 'call' | 'raise';
 
+/** Nature de la décision : ouverture préflop, face à une relance, mise libre ou face à une mise. */
+export type Situation = 'open' | 'vs-raise' | 'vs-3bet' | 'bet' | 'facing-bet';
+
 export const RECO_LABELS: Record<Recommendation, string> = {
   fold: 'Se coucher',
   check: 'Checker',
@@ -18,6 +21,7 @@ export const RECO_LABELS: Record<Recommendation, string> = {
 
 export interface CoachAdvice {
   street: Street;
+  situation: Situation;
   handClass: string;
   handName: string | null;
   position: string | null;
@@ -151,7 +155,8 @@ export function getAdvice(s: GameState, rng: Rng = defaultRng, iterations = 2500
     if (recommendation === 'raise' && !legal.canRaise) recommendation = legal.toCall > 0 ? 'call' : 'check';
     if (recommendation === 'fold' && legal.canCheck) recommendation = 'check';
     reasons.push(`Équité contre ${opponents} main${opponents > 1 ? 's' : ''} aléatoire${opponents > 1 ? 's' : ''} : ${pct(equity)}.`);
-    return { ...base, handName: null, equity, outs: null, cardsToCome: 0, recommendation, raiseTo, reasons, close };
+    const situation: Situation = raises === 0 ? 'open' : raises === 1 ? 'vs-raise' : 'vs-3bet';
+    return { ...base, situation, handName: null, equity, outs: null, cardsToCome: 0, recommendation, raiseTo, reasons, close };
   }
 
   // ——— Après le flop ———
@@ -212,7 +217,8 @@ export function getAdvice(s: GameState, rng: Rng = defaultRng, iterations = 2500
       }
     }
   }
-  return { ...base, handName, equity, outs, cardsToCome, recommendation, raiseTo, reasons, close };
+  const situation: Situation = legal.toCall > 0 ? 'facing-bet' : 'bet';
+  return { ...base, situation, handName, equity, outs, cardsToCome, recommendation, raiseTo, reasons, close };
 }
 
 /** Compare l'action jouée au conseil du coach. */

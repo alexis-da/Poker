@@ -11,7 +11,7 @@ import {
 } from '@radix-ui/react-icons';
 import { Badge, DropdownMenu, IconButton, TabNav } from '@radix-ui/themes';
 import { useAppearance } from './appearance';
-import { useEffect, useState, type ComponentType } from 'react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { preloadCards } from './components/PlayingCard';
 import { useSettings } from './store/store';
 import { Home } from './views/Home';
@@ -94,6 +94,19 @@ function readRoute(): string {
 
 export function App() {
   const [route, setRoute] = useState(readRoute);
+  const [visit, setVisit] = useState(0);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // Hauteur réelle de la barre du haut, pour que l'écran de jeu tienne dans la fenêtre.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () => document.documentElement.style.setProperty('--topbar-h', `${el.offsetHeight}px`);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [settings] = useSettings();
   const session = useSession();
 
@@ -104,6 +117,7 @@ export function App() {
   useEffect(() => {
     const onHash = () => {
       setRoute(readRoute());
+      setVisit((v) => v + 1);
       window.scrollTo({ top: 0 });
     };
     window.addEventListener('hashchange', onHash);
@@ -114,7 +128,7 @@ export function App() {
 
   return (
     <div className={`app ${settings.fourColor ? 'four-color' : ''} app--${nav}`}>
-      <header className="topbar">
+      <header className="topbar" ref={headerRef}>
         <div className="topbar__inner">
           <a href="#accueil" className="brand">
             <span className="brand__mark" aria-hidden="true">
@@ -157,7 +171,7 @@ export function App() {
             </TabNav.Link>
           </TabNav.Root>
         )}
-        <View key={route} />
+        <View key={`${route}-${visit}`} />
       </main>
     </div>
   );
