@@ -110,7 +110,7 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
   });
 
   return (
-    <Card size="3" className="action-bar">
+    <Card size="3" className="action-bar action-bar--act">
       {legal.canRaise && (
         <div className="action-bar__sizing">
           <SegmentedControl.Root
@@ -158,25 +158,31 @@ export function ActionBar({ game, legal, advice, showHint, onAction }: Props) {
         </div>
       )}
       <div className="action-bar__buttons">
-        <Recommended on={reco === 'fold'}>
-          <Button id="act-fold" size="4" variant="soft" color="gray" onClick={doFold}>
-            Se coucher <Kbd size="1">F</Kbd>
-          </Button>
-        </Recommended>
-        <Recommended on={reco === 'call' || reco === 'check'}>
-          <Button id="act-call" size="4" variant="solid" color="grass" onClick={doCall}>
-            {callVerb}
-            {!legal.canCheck && <span className="act-amt">{formatBB(legal.toCall, bb)}</span>}
-            <Kbd size="1">C</Kbd>
-          </Button>
-        </Recommended>
-        <Recommended on={reco === 'raise'}>
-          <Button id="act-raise" size="4" variant="solid" color="gray" highContrast onClick={doRaise} disabled={!legal.canRaise}>
-            {legal.canRaise ? raiseVerb : 'Relance impossible'}
-            {legal.canRaise && <span className="act-amt">{formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}</span>}
-            <Kbd size="1">R</Kbd>
-          </Button>
-        </Recommended>
+        <div className="act-cell">
+          <Recommended on={reco === 'fold'}>
+            <Button id="act-fold" size="4" variant="soft" color="gray" onClick={doFold}>
+              Se coucher <Kbd size="1">F</Kbd>
+            </Button>
+          </Recommended>
+        </div>
+        <div className="act-cell">
+          <Recommended on={reco === 'call' || reco === 'check'}>
+            <Button id="act-call" size="4" variant="solid" color="grass" onClick={doCall}>
+              {callVerb}
+              {!legal.canCheck && <span className="act-amt">{formatBB(legal.toCall, bb)}</span>}
+              <Kbd size="1">C</Kbd>
+            </Button>
+          </Recommended>
+        </div>
+        <div className="act-cell">
+          <Recommended on={reco === 'raise'}>
+            <Button id="act-raise" size="4" variant="solid" color="gray" highContrast onClick={doRaise} disabled={!legal.canRaise}>
+              {legal.canRaise ? raiseVerb : 'Relance impossible'}
+              {legal.canRaise && <span className="act-amt">{formatBB(allIn ? legal.maxRaiseTo : raiseTo, bb)}</span>}
+              <Kbd size="1">R</Kbd>
+            </Button>
+          </Recommended>
+        </div>
       </div>
     </Card>
   );

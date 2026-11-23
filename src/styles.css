@@ -807,26 +807,20 @@ body::before {
   gap: 12px 16px;
 }
 
-/* Écran large : réglage de mise et boutons sur une seule ligne pour laisser la hauteur à la table. */
-@media (min-width: 1100px) {
-  .action-bar.rt-Card {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+/* Réglage de mise et boutons sur une seule ligne seulement quand les deux y tiennent en entier
+   (très grand écran) ; sinon deux lignes. Les largeurs de base sont celles du contenu réel. */
+.action-bar--act.rt-Card {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+}
 
-  .action-bar__sizing {
-    flex: 1 1 360px;
-    flex-wrap: nowrap;
-  }
+.action-bar--act .action-bar__sizing {
+  flex: 1 1 540px;
+}
 
-  .action-bar__sizing .action-bar__slider {
-    min-width: 80px;
-  }
-
-  .action-bar__buttons {
-    flex: 1 1 440px;
-  }
+.action-bar--act .action-bar__buttons {
+  flex: 1 1 620px;
 }
 
 @media (max-height: 820px) and (min-width: 641px) {
@@ -840,11 +834,12 @@ body::before {
 }
 
 .action-bar__slider {
-  flex: 1 1 200px;
-  min-width: 140px;
+  flex: 1 1 120px;
+  min-width: 100px;
 }
 
 .action-bar__amount {
+  flex: none;
   width: 104px;
   font-family: var(--mono);
 }
@@ -858,15 +853,43 @@ body::before {
 .action-bar__buttons .rt-Button {
   width: 100%;
   gap: 8px;
+  white-space: nowrap;
+}
+
+/* Chaque bouton s'adapte à sa propre largeur : jamais de montant coupé en deux
+   (« 2,5 » au-dessus de « BB ») ; le montant passe sous le verbe quand la place manque. */
+.act-cell {
+  container-type: inline-size;
+  min-width: 0;
 }
 
 .act-amt {
   font-family: var(--mono);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .action-bar__buttons .rt-Kbd {
   opacity: 0.7;
+}
+
+@container (max-width: 279px) {
+  .action-bar__buttons .rt-Kbd {
+    display: none;
+  }
+}
+
+@container (max-width: 229px) {
+  .action-bar__buttons .rt-Button {
+    --base-button-height: 52px;
+    flex-direction: column;
+    gap: 0;
+    padding-inline: 8px;
+    font-size: 15px;
+    line-height: 1.25;
+    white-space: normal;
+    text-align: center;
+  }
 }
 
 .reco.star-border {
