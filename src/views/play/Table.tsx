@@ -188,7 +188,7 @@ export function Table({ game, thinking, thinkMs }: Props) {
                     {p.isHuman ? 'Vous' : p.name}
                     {game.positions[i] ? ` · ${game.positions[i]}` : ''}
                   </Text>
-                  <span className="seat__stack">{p.sittingOut ? 'Éliminé' : formatBB(p.stack, bb)}</span>
+                  <span className="seat__stack">{p.sittingOut ? 'Hors jeu' : formatBB(p.stack, bb)}</span>
                   {p.isHuman && heroHand && (
                     <Text size="1" className="seat__hand">
                       {heroHand}

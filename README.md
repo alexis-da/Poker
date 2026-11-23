@@ -18,6 +18,8 @@ Le **coach** analyse chaque décision : équité (Monte Carlo), cotes du pot, ou
 ranges d’ouverture préflop. Trois modes : conseils visibles, correction après coup, désactivé.
 Chaque action est notée *bon / discutable / erreur* avec une explication.
 Règles complètes : blinds, relance minimale, tapis partiels, pots annexes, mises non suivies rendues.
+Parties à élimination, sans recave : un joueur sans jetons quitte la table, et la partie se termine
+quand vous n’avez plus de jetons (avec votre place) ou quand vous les avez tous remportés.
 
 **Exercices** (questions illimitées, corrigées et expliquées)
 1. Ranges d’ouverture par position

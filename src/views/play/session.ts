@@ -1,16 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { BOT_PROFILES } from '../../engine/bot';
 import type { Grade } from '../../engine/coach';
-import {
-  applyAction,
-  createGame,
-  potTotal,
-  setPlayer,
-  startHand,
-  type Action,
-  type GameState,
-  type SeatConfig,
-} from '../../engine/game';
+import { applyAction, createGame, startHand, type Action, type GameState, type SeatConfig } from '../../engine/game';
 import { pick } from '../../engine/random';
 import { recordCoach, recordHand } from '../../store/store';
 
@@ -33,6 +24,22 @@ export interface FeedbackEntry {
   hand: number;
 }
 
+/** Un joueur éliminé : pas de recave, il quitte la partie avec sa place. */
+export interface Elimination {
+  name: string;
+  isHuman: boolean;
+  place: number;
+  hand: number;
+}
+
+/** Fin de partie : vous êtes éliminé, ou vous avez gagné tous les jetons. */
+export interface GameOver {
+  won: boolean;
+  place: number;
+  players: number;
+  hands: number;
+}
+
 export interface SessionState {
   game: GameState | null;
   config: TableConfig;
@@ -42,17 +49,25 @@ export interface SessionState {
   feedback: FeedbackEntry | null;
   recordedHand: number;
   notice: string | null;
+  eliminations: Elimination[];
+  over: GameOver | null;
 }
 
-let session: SessionState = {
-  game: null,
-  config: { opponents: 5, startingBB: 100, profiles: 'mix' },
+const EMPTY = {
   hands: 0,
   netBB: 0,
   coach: { bon: 0, discutable: 0, erreur: 0 },
   feedback: null,
   recordedHand: 0,
   notice: null,
+  eliminations: [],
+  over: null,
+};
+
+let session: SessionState = {
+  game: null,
+  config: { opponents: 5, startingBB: 100, profiles: 'mix' },
+  ...EMPTY,
 };
 
 const listeners = new Set<() => void>();
@@ -61,6 +76,8 @@ const set = (patch: Partial<SessionState>) => {
   session = { ...session, ...patch };
   emit();
 };
+
+export const getSession = (): SessionState => session;
 
 export function useSession(): SessionState {
   return useSyncExternalStore(
@@ -87,22 +104,27 @@ export function newTable(config: TableConfig) {
   const seats: SeatConfig[] = [{ id: 'hero', name: 'Vous', isHuman: true, profile: null, stack }];
   for (let i = 0; i < config.opponents; i++) seats.push(makeBot(used, config.profiles, stack, i));
   const game = startHand(createGame(seats, SMALL_BLIND, BIG_BLIND));
-  session = {
-    ...session,
-    game,
-    config,
-    hands: 0,
-    netBB: 0,
-    coach: { bon: 0, discutable: 0, erreur: 0 },
-    feedback: null,
-    recordedHand: 0,
-    notice: null,
-  };
+  session = { ...session, ...EMPTY, game, config };
   emit();
 }
 
 export function leaveTable() {
-  set({ game: null, feedback: null, notice: null });
+  set({ game: null, feedback: null, notice: null, over: null, eliminations: [] });
+}
+
+const placeLabel = (n: number) => (n === 1 ? '1er' : `${n}e`);
+
+/**
+ * Joueurs éliminés à la fin d'une main : ceux qui avaient des jetons au début de la main et n'en ont plus.
+ * À élimination simultanée, le plus gros tapis de départ obtient la meilleure place.
+ */
+function eliminationsOf(game: GameState): Elimination[] {
+  const busted = game.players
+    .map((p, i) => ({ p, start: game.startStacks[i] }))
+    .filter(({ p, start }) => start > 0 && p.stack <= 0)
+    .sort((a, b) => b.start - a.start);
+  const alive = game.players.filter((p) => p.stack > 0).length;
+  return busted.map(({ p }, k) => ({ name: p.name, isHuman: p.isHuman, place: alive + 1 + k, hand: game.handNumber }));
 }
 
 /** Enregistre les statistiques d'une main terminée (une seule fois par main). */
@@ -116,24 +138,40 @@ function commit(game: GameState) {
   const pre = game.history.filter((h) => h.player === hi && h.street === 'preflop');
   const foldedPre = pre.some((h) => h.type === 'fold');
   const netBB = game.result.net[hi] / game.bigBlind;
-  const wasDealt = !hero.sittingOut;
-  if (wasDealt) {
-    recordHand({
-      netBB,
-      won: game.result.net[hi] > 0,
-      vpip: pre.some((h) => h.type === 'call' || h.type === 'raise'),
-      pfr: pre.some((h) => h.type === 'raise'),
-      sawFlop: !foldedPre && game.board.length >= 3,
-      showdown: game.result.showdown && hero.shown,
-      wonShowdown: game.result.showdown && hero.shown && game.result.net[hi] > 0,
-      potBB: game.result.pots.reduce((a, p) => a + p.amount, 0) / game.bigBlind,
-    });
-  }
+  recordHand({
+    netBB,
+    won: game.result.net[hi] > 0,
+    vpip: pre.some((h) => h.type === 'call' || h.type === 'raise'),
+    pfr: pre.some((h) => h.type === 'raise'),
+    sawFlop: !foldedPre && game.board.length >= 3,
+    showdown: game.result.showdown && hero.shown,
+    wonShowdown: game.result.showdown && hero.shown && game.result.net[hi] > 0,
+    potBB: game.result.pots.reduce((a, p) => a + p.amount, 0) / game.bigBlind,
+  });
+
+  const out = eliminationsOf(game);
+  const eliminations = [...session.eliminations, ...out];
+  const hands = session.hands + 1;
+  const players = game.players.length;
+  const heroOut = out.find((e) => e.isHuman);
+  const alive = game.players.filter((p) => p.stack > 0).length;
+  let over: GameOver | null = null;
+  if (heroOut) over = { won: false, place: heroOut.place, players, hands };
+  else if (alive === 1 && hero.stack > 0) over = { won: true, place: 1, players, hands };
+
+  const botsOut = out.filter((e) => !e.isHuman);
+  const notice = botsOut.length
+    ? botsOut.map((e) => `${e.name} quitte la table, ${placeLabel(e.place)} place.`).join(' ')
+    : null;
+
   set({
     game,
     recordedHand: game.handNumber,
-    hands: session.hands + (wasDealt ? 1 : 0),
+    hands,
     netBB: Math.round((session.netBB + netBB) * 10) / 10,
+    eliminations,
+    over,
+    notice,
   });
 }
 
@@ -158,36 +196,21 @@ export function botAct(action: Action) {
   commit(applyAction(g, action));
 }
 
+/** Main suivante, avec les seuls joueurs qui ont encore des jetons. */
 export function nextHand() {
-  let g = session.game;
-  if (!g) return;
-  const notices: string[] = [];
-  const used = new Set(g.players.map((p) => p.name));
-  g.players.forEach((p, i) => {
-    if (!p.isHuman && p.stack <= 0) {
-      const bot = makeBot(used, session.config.profiles, session.config.startingBB * BIG_BLIND, i);
-      notices.push(`${p.name} n’a plus de jetons : ${bot.name} prend sa place.`);
-      g = setPlayer(g!, i, bot);
-    }
-  });
-  const hero = g.players.find((p) => p.isHuman)!;
-  if (hero.stack <= 0) {
-    set({ game: g, notice: 'Vous n’avez plus de jetons.' });
-    return;
-  }
-  set({ game: startHand(g), notice: notices.length ? notices.join(' ') : null });
+  const g = session.game;
+  if (!g || session.over) return;
+  if (g.players.filter((p) => p.stack > 0).length < 2) return;
+  set({ game: startHand(g), notice: null });
 }
 
-export function rebuy() {
-  const g = session.game;
-  if (!g) return;
-  const i = g.players.findIndex((p) => p.isHuman);
-  const game = setPlayer(g, i, { stack: session.config.startingBB * BIG_BLIND });
-  set({ game: startHand(game), notice: `Recave de ${session.config.startingBB} BB.` });
+/** Rejoue une partie avec les mêmes réglages. */
+export function replay() {
+  newTable(session.config);
 }
 
 export function clearFeedback() {
   set({ feedback: null });
 }
 
-export { potTotal };
+export { placeLabel };

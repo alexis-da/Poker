@@ -19,7 +19,7 @@ import { getLegalActions, type Action } from '../../engine/game';
 import { useSettings } from '../../store/store';
 import { ActionBar } from './ActionBar';
 import { CoachPanel } from './CoachPanel';
-import { botAct, heroAct, leaveTable, newTable, nextHand, rebuy, useSession } from './session';
+import { botAct, heroAct, leaveTable, newTable, nextHand, placeLabel, replay, useSession } from './session';
 import { PROFILE_COLOR, Table } from './Table';
 
 const SPEED_MS = { lent: 1500, normal: 850, rapide: 320 };
@@ -129,11 +129,15 @@ function Setup() {
                 <SegmentedControl.Item value="off">Désactivé</SegmentedControl.Item>
               </SegmentedControl.Root>
             </Flex>
-            <div>
+            <Flex direction="column" gap="2" align="start">
               <Button size="4" type="submit">
                 S’asseoir à la table
               </Button>
-            </div>
+              <Text size="2" color="gray">
+                Partie à élimination, sans recave : un joueur sans jetons quitte la table. La partie se termine quand vous n’avez plus
+                de jetons ou quand vous les avez tous remportés.
+              </Text>
+            </Flex>
           </Flex>
         </Card>
       </form>
@@ -223,16 +227,16 @@ export function Play() {
   }, [game, thinking, thinkMs]);
 
   // Main suivante automatique.
-  const heroBroke = !!game && game.players[heroIndex].stack <= 0;
+  const over = session.over;
   useEffect(() => {
-    if (!game?.result || !settings.autoNext || heroBroke) return;
+    if (!game?.result || !settings.autoNext || over) return;
     const t = window.setTimeout(() => nextHand(), 3200);
     return () => window.clearTimeout(t);
-  }, [game, settings.autoNext, heroBroke]);
+  }, [game, settings.autoNext, over]);
 
   // Espace ou Entrée : main suivante.
   useEffect(() => {
-    if (!game?.result || heroBroke) return;
+    if (!game?.result || over) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'BUTTON')) return;
@@ -243,7 +247,7 @@ export function Play() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [game, heroBroke]);
+  }, [game, over]);
 
   useEffect(() => {
     const el = logRef.current;
@@ -259,7 +263,11 @@ export function Play() {
   };
   const opponents = game.players.filter((p) => !p.isHuman);
   const street = STREET_FR[game.street];
-  const title = game.result
+  const title = over
+    ? over.won
+      ? 'Partie gagnée'
+      : 'Partie terminée'
+    : game.result
     ? 'Main terminée'
     : heroTurn
       ? `${street}, à vous de parler`
@@ -321,10 +329,27 @@ export function Play() {
                   {session.notice}
                 </Text>
               )}
-              {heroBroke ? (
-                <Button size="4" onClick={rebuy}>
-                  Recaver {session.config.startingBB} BB
-                </Button>
+              {over ? (
+                <Flex direction="column" gap="3" align="center">
+                  <Heading size="5" as="h2">
+                    {over.won
+                      ? `Vous remportez la partie en ${over.hands} main${over.hands > 1 ? 's' : ''}`
+                      : `Vous terminez ${placeLabel(over.place)} sur ${over.players}`}
+                  </Heading>
+                  <Text size="2" color="gray">
+                    {over.won
+                      ? 'Vous avez pris tous les jetons de la table.'
+                      : `Vous n’avez plus de jetons après ${over.hands} main${over.hands > 1 ? 's' : ''}. Pas de recave : la partie s’arrête ici.`}
+                  </Text>
+                  <Flex gap="3" wrap="wrap" justify="center">
+                    <Button size="3" id="replay" onClick={replay}>
+                      Nouvelle partie
+                    </Button>
+                    <Button size="3" variant="soft" color="gray" onClick={leaveTable}>
+                      Changer les réglages
+                    </Button>
+                  </Flex>
+                </Flex>
               ) : (
                 <Button size="4" id="next-hand" onClick={nextHand}>
                   Main suivante <Kbd>Espace</Kbd>
@@ -368,15 +393,22 @@ export function Play() {
           <Flex direction="column" gap="2">
             {opponents.map((p) => {
               const prof = p.profile ? PROFILE_BY_ID[p.profile] : null;
+              const out = session.eliminations.find((e) => e.name === p.name && !e.isHuman);
               return (
                 <Flex key={p.id} justify="between" align="center" gap="2">
-                  <Text size="2" weight="medium">
+                  <Text size="2" weight="medium" color={out ? 'gray' : undefined}>
                     {p.name}
                   </Text>
-                  {prof && (
-                    <Badge color={PROFILE_COLOR[prof.id]} variant="soft">
-                      {prof.label} · {prof.style}
+                  {out ? (
+                    <Badge color="gray" variant="outline">
+                      Hors jeu · {placeLabel(out.place)}
                     </Badge>
+                  ) : (
+                    prof && (
+                      <Badge color={PROFILE_COLOR[prof.id]} variant="soft">
+                        {prof.label} · {prof.style}
+                      </Badge>
+                    )
                   )}
                 </Flex>
               );
