@@ -23,6 +23,52 @@ export const NEXT_HAND_MS = 5_000;
 /** Après deux temps écoulés de suite, le joueur est considéré comme absent. */
 export const MAX_TIMEOUTS = 2;
 
+/**
+ * Montée des blindes, comme en tournoi rapide : un niveau toutes les 6 mains. Avec 100 BB au départ,
+ * il ne reste qu'une dizaine de grosses blindes en moyenne vers la 25e main ; une partie à 4-6 joueurs
+ * dure ainsi environ 30 à 45 minutes.
+ */
+export const HANDS_PER_LEVEL = 6;
+export const BLIND_LEVELS: readonly (readonly [number, number])[] = [
+  [5, 10],
+  [10, 20],
+  [15, 30],
+  [25, 50],
+  [50, 100],
+  [75, 150],
+  [100, 200],
+  [150, 300],
+  [200, 400],
+  [300, 600],
+  [500, 1000],
+  [750, 1500],
+  [1000, 2000],
+  [1500, 3000],
+  [2500, 5000],
+];
+
+export interface BlindLevel {
+  level: number;
+  smallBlind: number;
+  bigBlind: number;
+  /** Mains restantes à ce niveau, celle-ci comprise. */
+  handsLeft: number;
+  /** Dernier niveau atteint : les blindes ne montent plus. */
+  last: boolean;
+}
+
+export function blindLevel(handNumber: number): BlindLevel {
+  const i = Math.min(BLIND_LEVELS.length - 1, Math.floor(Math.max(0, handNumber - 1) / HANDS_PER_LEVEL));
+  const [smallBlind, bigBlind] = BLIND_LEVELS[i];
+  return {
+    level: i + 1,
+    smallBlind,
+    bigBlind,
+    handsLeft: HANDS_PER_LEVEL - (Math.max(0, handNumber - 1) % HANDS_PER_LEVEL),
+    last: i === BLIND_LEVELS.length - 1,
+  };
+}
+
 export const BOT_PROFILES = ['reg', 'lag', 'roc', 'station'] as const;
 export const BOT_NAMES = ['Nora', 'Marc', 'Léa', 'Omar', 'Inès'];
 
@@ -77,7 +123,7 @@ export function newTable(seats: Seat[], rng: Rng, now: number): ServerTable {
     BIG_BLIND,
   );
   const t: ServerTable = { game: startHand(game, rng), seats, nextAt: null, deadline: null, timeouts: {}, eliminations: [], over: false };
-  return schedule(t, now);
+  return settle(t, now);
 }
 
 /** Calcule la prochaine étape automatique et le temps de réflexion. */
@@ -175,7 +221,10 @@ export function step(t: ServerTable, now: number, rng: Rng): ServerTable | null 
   if (t.over || t.nextAt === null || now < t.nextAt) return null;
   const g = t.game;
   if (g.result || g.toAct === null) {
-    return schedule({ ...t, game: startHand(g, rng) }, now);
+    // Main suivante, aux blindes du niveau en cours. Elle peut se terminer dès la donne
+    // (joueurs à tapis sur les blindes) : on fait alors le bilan comme après une action.
+    const lvl = blindLevel(g.handNumber + 1);
+    return settle({ ...t, game: startHand({ ...g, smallBlind: lvl.smallBlind, bigBlind: lvl.bigBlind }, rng) }, now);
   }
   const seat = t.seats[g.toAct];
   if (seat.bot) return settle({ ...t, game: applyAction(g, decideBot(g, rng)) }, now);

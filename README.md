@@ -63,7 +63,15 @@ l’historique local existant y est importé à la première ouverture. Il s’e
 **En ligne** (bouton sur l’accueil et l’écran Jouer) : tables privées de 2 à 6 joueurs avec un code de
 5 caractères ou un lien à partager, places libres complétées par des bots si l’hôte le souhaite,
 100 BB de départ, parties à élimination, classement final et « Rejouer » pour l’hôte. Chacun se voit
-en bas de la table ; le coach et l’enregistrement des erreurs fonctionnent aussi en ligne.
+en bas de la table. Pas de coach en ligne : on joue entre amis, à armes égales.
+
+**Blindes qui montent** (en ligne) : un niveau toutes les 6 mains, 5/10, 10/20, 15/30, 25/50, 50/100,
+75/150, 100/200… Une partie à 4-6 joueurs dure une trentaine de mains (30 à 45 minutes) ; la barre de
+jeu affiche le niveau et le nombre de mains avant la hausse.
+
+**Cartes cachées** (bouton œil à la table, en ligne et contre les bots) : quand d’autres joueurs voient
+votre écran, votre main reste de dos ; maintenez le doigt ou la souris dessus, ou la touche V, pour la
+regarder. Le nom de votre combinaison (et le coach, contre les bots) est masqué en même temps.
 
 Fonctionnement (Supabase) :
 

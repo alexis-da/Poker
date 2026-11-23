@@ -2,6 +2,7 @@ import { Avatar, Badge, Card, Text } from '@radix-ui/themes';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { PlayingCard } from '../../components/PlayingCard';
 import GlareHover from '../../components/reactbits/GlareHover';
+import type { PeekHandlers } from './usePeek';
 import { PROFILE_BY_ID } from '../../engine/bot';
 import type { Card as CardT } from '../../engine/cards';
 import { bestFive, describeScore, evaluate } from '../../engine/evaluator';
@@ -14,6 +15,10 @@ interface Props {
   thinkMs: number;
   /** Siège affiché en bas de la table (en ligne : le vôtre). Par défaut, le joueur humain. */
   heroSeat?: number;
+  /** Cartes cachées : votre main est affichée de dos tant que vous ne la regardez pas. */
+  concealHero?: boolean;
+  /** Gestes pour regarder sa main (maintenir le doigt ou la souris dessus). */
+  peekHandlers?: PeekHandlers;
 }
 
 type RadixColor = 'gray' | 'blue' | 'grass' | 'amber' | 'tomato';
@@ -123,10 +128,12 @@ function placeBets(stage: HTMLElement | null) {
   if (!S.width || !S.height) return;
   const k = parseFloat(getComputedStyle(stage).getPropertyValue('--seat-scale')) || 1;
   // Boîte d'un élément, centrée sur sa position affichée, à sa taille finale (les animations « pop » la réduisent).
-  const box = (el: HTMLElement, scaled: boolean): Box | null => {
+  const centerEl = stage.querySelector<HTMLElement>('.table__center');
+  const centerK = (centerEl && parseFloat(getComputedStyle(centerEl).scale)) || 1;
+  const box = (el: HTMLElement, scale: number | null): Box | null => {
     const r = el.getBoundingClientRect();
-    const w = scaled ? el.offsetWidth * k : r.width;
-    const h = scaled ? el.offsetHeight * k : r.height;
+    const w = scale ? el.offsetWidth * scale : r.width;
+    const h = scale ? el.offsetHeight * scale : r.height;
     if (!w || !h) return null;
     const cx = (r.left + r.right) / 2 - S.left;
     const cy = (r.top + r.bottom) / 2 - S.top;
@@ -135,13 +142,17 @@ function placeBets(stage: HTMLElement | null) {
   const seats = new Map<number, Box>();
   const obstacles: Box[] = [];
   stage.querySelectorAll<HTMLElement>('.seat[data-seat]').forEach((el) => {
-    const b = box(el, false);
+    const b = box(el, null);
     if (!b) return;
     seats.set(Number(el.dataset.seat), b);
     obstacles.push(b);
   });
-  stage.querySelectorAll<HTMLElement>('.seat__tag, .table__center > *').forEach((el) => {
-    const b = box(el, true);
+  stage.querySelectorAll<HTMLElement>('.seat__tag').forEach((el) => {
+    const b = box(el, k);
+    if (b) obstacles.push(b);
+  });
+  stage.querySelectorAll<HTMLElement>('.table__center > *').forEach((el) => {
+    const b = box(el, centerK);
     if (b) obstacles.push(b);
   });
   const F = feltEl.getBoundingClientRect();
@@ -150,8 +161,7 @@ function placeBets(stage: HTMLElement | null) {
   const ax = F.width / 2 - 6;
   const ay = F.height / 2 - 6;
   const onFelt = (x: number, y: number) => ((x - fx) / ax) ** 2 + ((y - fy) / ay) ** 2 <= 1;
-  const gap = 4 * k;
-  const hits = (c: Box) => obstacles.some((o) => c.l < o.r + gap && o.l < c.r + gap && c.t < o.b + gap && o.t < c.b + gap);
+  const hits = (c: Box, gap: number) => obstacles.some((o) => c.l < o.r + gap && o.l < c.r + gap && c.t < o.b + gap && o.t < c.b + gap);
   const mid = (b: Box) => ({ x: (b.l + b.r) / 2, y: (b.t + b.b) / 2 });
   const step = Math.max(4, Math.min(S.width, S.height) / 70);
 
@@ -165,14 +175,19 @@ function placeBets(stage: HTMLElement | null) {
     const ideal = { x: own.x + (fx - own.x) * 0.5, y: own.y + (fy - own.y) * 0.5 };
     const others = [...seats.entries()].filter(([i]) => i !== Number(el.dataset.seat)).map(([, b]) => mid(b));
     let best = null as { x: number; y: number; d: number } | null;
-    for (const strict of [true, false]) {
+    // D'abord avec une marge et devant son joueur, puis en relâchant ces exigences si la table est pleine.
+    for (const [strict, gap] of [
+      [true, 4 * k],
+      [false, 4 * k],
+      [false, 0],
+    ] as const) {
       for (let y = h / 2; y <= S.height - h / 2; y += step) {
         for (let x = w / 2; x <= S.width - w / 2; x += step) {
           const d = Math.hypot(x - ideal.x, y - ideal.y);
           if (best && d >= best.d) continue;
           const c = { l: x - w / 2, t: y - h / 2, r: x + w / 2, b: y + h / 2 };
           if (!onFelt(c.l, c.t) || !onFelt(c.r, c.t) || !onFelt(c.l, c.b) || !onFelt(c.r, c.b)) continue;
-          if (hits(c)) continue;
+          if (hits(c, gap)) continue;
           // Plus près de son joueur que de tout autre, pour qu'on sache à qui est la mise.
           const dOwn = Math.hypot(x - own.x, y - own.y);
           if (strict && others.some((o) => Math.hypot(x - o.x, y - o.y) < dOwn)) continue;
@@ -188,7 +203,7 @@ function placeBets(stage: HTMLElement | null) {
   }
 }
 
-export function Table({ game, thinking, thinkMs, heroSeat }: Props) {
+export function Table({ game, thinking, thinkMs, heroSeat, concealHero = false, peekHandlers }: Props) {
   const compact = useCompact();
   const [stageRef, seatScale] = useSeatScale(compact);
   // Après chaque rendu, avant l'affichage : replacer les mises selon ce qui est réellement à l'écran.
@@ -252,7 +267,7 @@ export function Table({ game, thinking, thinkMs, heroSeat }: Props) {
         const bt = seatPoint(at(i), n, compact ? 0.6 : 0.55, compact);
         const profile = p.profile ? PROFILE_BY_ID[p.profile] : null;
         const isTurn = game.toAct === i && !result;
-        const showCards = p.isHuman || p.shown;
+        const showCards = p.shown || (p.isHuman && !concealHero);
         const won = winnerShare.has(i);
         const net = result?.net[i] ?? 0;
         const tag = p.lastAction && !result && !p.isHuman ? actionTag(p.lastAction) : null;
@@ -281,13 +296,21 @@ export function Table({ game, thinking, thinkMs, heroSeat }: Props) {
               style={{ left: `${pt.x}%`, top: `${pt.y}%` }}
               data-seat={i}
             >
-              <div className="seat__cards">
+              <div
+                className={p.isHuman && peekHandlers ? 'seat__cards seat__cards--peek' : 'seat__cards'}
+                {...(p.isHuman && peekHandlers && p.hole.length > 0 ? peekHandlers : {})}
+              >
                 {p.isHuman && p.hole.length > 0 ? (
                   <GlareHover borderRadius="12px" glareOpacity={0.55} className="seat__glare">
                     <span className="seat__hand-cards">{cards}</span>
                   </GlareHover>
                 ) : (
                   cards
+                )}
+                {p.isHuman && concealHero && !p.shown && p.hole.length > 0 && !p.folded && (
+                  <span className="peek-hint" aria-hidden="true">
+                    {compact ? 'Maintenir pour voir' : 'Maintenir pour voir · V'}
+                  </span>
                 )}
               </div>
               <Card size="1" variant="classic" className="seat__plate">
@@ -304,7 +327,7 @@ export function Table({ game, thinking, thinkMs, heroSeat }: Props) {
                     {game.positions[i] ? ` · ${game.positions[i]}` : ''}
                   </Text>
                   <span className="seat__stack">{p.sittingOut ? 'Hors jeu' : formatBB(p.stack, bb)}</span>
-                  {p.isHuman && heroHand && (
+                  {p.isHuman && heroHand && (!concealHero || p.shown) && (
                     <Text size="1" className="seat__hand">
                       {heroHand}
                     </Text>

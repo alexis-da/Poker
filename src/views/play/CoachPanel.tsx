@@ -17,6 +17,8 @@ interface Props {
   feedback: FeedbackEntry | null;
   heroTurn: boolean;
   bigBlind: number;
+  /** Cartes cachées : le coach se tait tant que vous ne regardez pas votre main. */
+  concealed?: boolean;
 }
 
 const pct = (x: number) => `${Math.round(x * 100)} %`;
@@ -62,7 +64,7 @@ const VERDICT_UI = {
   erreur: { color: 'tomato' as const, icon: CrossCircledIcon, label: 'Erreur' },
 };
 
-export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props) {
+export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind, concealed = false }: Props) {
   const [revealedFor, setRevealedFor] = useState<string | null>(null);
   const key = advice ? `${advice.street}-${advice.toCall}-${advice.pot}` : null;
   const show = mode === 'visible' || (mode === 'apres' && revealedFor === key);
@@ -80,7 +82,7 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
         <Text size="2" weight="bold">
           Coach
         </Text>
-        {advice && heroTurn && show && (
+        {advice && heroTurn && show && !concealed && (
           <Text size="1" color="gray">
             {advice.street === 'preflop' ? 'Préflop' : advice.street === 'flop' ? 'Flop' : advice.street === 'turn' ? 'Turn' : 'River'}
             {advice.toCall > 0 ? ` · face à ${formatBB(advice.toCall, bigBlind)}` : ''}
@@ -88,13 +90,19 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
         )}
       </Flex>
 
+      {concealed && mode !== 'off' && (
+        <Text as="p" size="2" color="gray">
+          Vos cartes sont cachées : maintenez-les (ou la touche V) pour les voir, avec les conseils du coach.
+        </Text>
+      )}
+
       {mode === 'off' && (
         <Text as="p" size="2" color="gray">
           Le coach est désactivé. Activez-le dans les réglages de la table pour obtenir conseils et corrections.
         </Text>
       )}
 
-      {mode !== 'off' && feedback && (
+      {mode !== 'off' && !concealed && feedback && (
         <Callout.Root color={VERDICT_UI[feedback.grade.verdict].color} variant="surface" size="1" mb="4">
           <Callout.Icon>
             {(() => {
@@ -128,7 +136,7 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
         </Callout.Root>
       )}
 
-      {mode !== 'off' && heroTurn && advice && !show && (
+      {mode !== 'off' && !concealed && heroTurn && advice && !show && (
         <Flex direction="column" gap="3" align="start">
           <Text as="p" size="2" color="gray">
             Décidez d’abord : le coach corrigera votre choix. Vous pouvez aussi demander un indice.
@@ -139,7 +147,7 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
         </Flex>
       )}
 
-      {mode !== 'off' && heroTurn && advice && show && (
+      {mode !== 'off' && !concealed && heroTurn && advice && show && (
         <div className="coach__advice">
           <Callout.Root color="grass" variant="surface" size="2">
             <Callout.Text>
@@ -201,7 +209,7 @@ export function CoachPanel({ advice, mode, feedback, heroTurn, bigBlind }: Props
         </div>
       )}
 
-      {mode !== 'off' && !heroTurn && !feedback && (
+      {mode !== 'off' && !concealed && !heroTurn && !feedback && (
         <Text as="p" size="2" color="gray">
           Le coach analysera votre prochaine décision.
         </Text>

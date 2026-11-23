@@ -2025,6 +2025,20 @@ button.rg-cell {
     gap: 4px;
   }
 
+  /* Tapis étroit : le centre n'est pas réduit, et chaque carte du tableau prend au plus 14 % de sa
+     largeur ; cinq cartes et leurs écarts tiennent ainsi toujours dans le tapis. */
+  .table__felt {
+    container-type: inline-size;
+  }
+
+  .is-compact .table__center {
+    scale: 1;
+  }
+
+  .board .pcard--md {
+    --cw: min(44px, 14cqw);
+  }
+
   .pot {
     font-size: 13px;
   }
@@ -2264,4 +2278,36 @@ button.rg-cell {
   .room-code {
     font-size: 36px;
   }
+}
+
+/* ——— Cartes cachées (écran visible par d'autres joueurs) ——— */
+
+.seat__cards--peek {
+  position: relative;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.seat__cards--peek:active {
+  cursor: grabbing;
+}
+
+.peek-hint {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  translate: -50% -50%;
+  z-index: 2;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }

@@ -2,18 +2,16 @@ import { CheckIcon, CopyIcon, ExitIcon, PersonIcon, ReloadIcon } from '@radix-ui
 import { Badge, Button, Callout, Card, Flex, Heading, SegmentedControl, Spinner, Switch, Text, TextField } from '@radix-ui/themes';
 import { useEffect, useMemo, useState } from 'react';
 import { PROFILE_BY_ID } from '../../engine/bot';
-import { getAdvice, gradeDecision } from '../../engine/coach';
 import { formatBB, getLegalActions, type Action, type GameState } from '../../engine/game';
 import { callTable, onlineConfigured, OnlineError, savedPseudo, savePseudo, serverNow } from '../../online/client';
-import type { PublicTable } from '../../online/logic';
+import { blindLevel, HANDS_PER_LEVEL, type PublicTable } from '../../online/logic';
 import { CODE_LENGTH, normalizeCode } from '../../online/service';
 import { useOnlineRoom, type HandRow, type MemberRow, type RoomRow } from '../../online/useOnlineRoom';
 import { useSettings } from '../../store/store';
-import { classifyDecision } from '../../training/classify';
-import { logEvent } from '../../training/db';
 import { ActionBar } from '../play/ActionBar';
-import { CoachPanel } from '../play/CoachPanel';
-import { placeLabel, type FeedbackEntry } from '../play/session';
+import { HideCardsToggle } from '../play/Play';
+import { placeLabel } from '../play/session';
+import { usePeek } from '../play/usePeek';
 import { PROFILE_COLOR, Table } from '../play/Table';
 
 const STREET_FR = { preflop: 'Préflop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Abattage' } as const;
@@ -94,7 +92,7 @@ function Lobby() {
     <div className="page">
       <header className="page-head">
         <Text size="2" color="gray">
-          Tables privées · No-Limit Hold’em · 100 BB · blinds 0,5 / 1 BB
+          Tables privées · No-Limit Hold’em · 100 BB au départ · blindes en hausse toutes les {HANDS_PER_LEVEL} mains
         </Text>
         <Heading size="8">Jouer en ligne</Heading>
         <Text as="p" size="3" color="gray" className="lede">
@@ -318,7 +316,7 @@ function WaitingRoom(props: {
     <div className="page">
       <header className="page-head">
         <Text size="2" color="gray">
-          Table privée · {room.max_seats} places · 100 BB
+          Table privée · {room.max_seats} places · 100 BB au départ · blindes en hausse toutes les {HANDS_PER_LEVEL} mains
         </Text>
         <Heading size="8">En attente des joueurs</Heading>
         <Text as="p" size="3" color="gray" className="lede">
@@ -435,8 +433,9 @@ function OnlineGame(props: {
   onLeave: () => void;
 }) {
   const { room, pub, me } = props;
-  const [settings] = useSettings();
-  const [feedback, setFeedback] = useState<FeedbackEntry | null>(null);
+  // Pas de coach en ligne : on joue entre amis, à armes égales.
+  const [settings, setSettings] = useSettings();
+  const peek = usePeek(settings.hideCards);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const heroIndex = pub.seats.findIndex((s) => s.userId === me);
   const myName = pub.seats[heroIndex]?.name;
@@ -445,25 +444,12 @@ function OnlineGame(props: {
   const toAct = !game.result && !over ? game.toAct : null;
   const heroTurn = toAct !== null && toAct === heroIndex && game.players[heroIndex].hole[0] >= 0;
   const legal = heroTurn ? getLegalActions(game) : null;
-  const advice = useMemo(
-    () => (heroTurn && settings.coachMode !== 'off' ? getAdvice(game) : null),
-    // Un seul calcul par situation (le conseil fait un Monte Carlo).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [heroTurn, room.version, settings.coachMode, props.hand?.hand],
-  );
   const seconds = useCountdown(pub.nextAt);
   const isHost = room.host === me;
   const street = STREET_FR[game.street];
   const actor = toAct !== null ? pub.seats[toAct] : null;
   const hero = game.players[heroIndex];
 
-  const onAction = (action: Action, label: string) => {
-    const grade = advice && settings.coachMode !== 'off' ? gradeDecision(advice, action) : null;
-    const event = advice && grade ? classifyDecision(advice, action, grade) : null;
-    if (event) void logEvent(event);
-    if (grade) setFeedback({ grade, action: label, street, hand: game.handNumber, event });
-    props.onPlay(action);
-  };
 
   const title = over
     ? 'Partie terminée'
@@ -476,6 +462,7 @@ function OnlineGame(props: {
           : `${street} · ${actor?.name ?? ''} réfléchit`;
 
   const myPlace = pub.eliminations.find((e) => e.userId === me)?.place;
+  const level = blindLevel(game.handNumber);
 
   return (
     <div className="play">
@@ -483,31 +470,42 @@ function OnlineGame(props: {
         <div className="play__bar">
           <div>
             <Text size="2" color="gray">
-              Table {room.code} · main n° {game.handNumber} · {game.players.filter((p) => !p.sittingOut).length} joueurs
+              Table {room.code} · main n° {game.handNumber} · niveau {level.level}, blindes {level.smallBlind}/{level.bigBlind}
+              {level.last ? '' : ` · hausse dans ${level.handsLeft} main${level.handsLeft > 1 ? 's' : ''}`}
             </Text>
             <Heading size="6" className="play__title">
               {title}
             </Heading>
           </div>
-          {confirmLeave ? (
-            <Flex gap="2" align="center" wrap="wrap">
-              <Text size="2">Quitter la table ?</Text>
-              <Button size="2" color="tomato" onClick={props.onLeave}>
-                Quitter
+          <Flex gap="2" align="center" wrap="wrap" justify="end">
+            <HideCardsToggle on={settings.hideCards} onChange={(v) => setSettings({ hideCards: v })} />
+            {confirmLeave ? (
+              <Flex gap="2" align="center" wrap="wrap">
+                <Text size="2">Quitter la table ?</Text>
+                <Button size="2" color="tomato" onClick={props.onLeave}>
+                  Quitter
+                </Button>
+                <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(false)}>
+                  Rester
+                </Button>
+              </Flex>
+            ) : (
+              <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(true)} aria-label="Quitter la table">
+                <ExitIcon /> <span className="hide-phone">Quitter la table</span>
               </Button>
-              <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(false)}>
-                Rester
-              </Button>
-            </Flex>
-          ) : (
-            <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(true)} aria-label="Quitter la table">
-              <ExitIcon /> <span className="hide-phone">Quitter la table</span>
-            </Button>
-          )}
+            )}
+          </Flex>
         </div>
 
         <div className="table-area">
-          <Table game={game} heroSeat={Math.max(0, heroIndex)} thinking={toAct !== null && toAct !== heroIndex ? toAct : null} thinkMs={Math.max(0, (pub.nextAt ?? 0) - serverNow())} />
+          <Table
+            game={game}
+            heroSeat={Math.max(0, heroIndex)}
+            thinking={toAct !== null && toAct !== heroIndex ? toAct : null}
+            thinkMs={Math.max(0, (pub.nextAt ?? 0) - serverNow())}
+            concealHero={peek.concealed}
+            peekHandlers={peek.handlers}
+          />
         </div>
 
         <div className="console">
@@ -522,9 +520,9 @@ function OnlineGame(props: {
                 key={`${room.version}`}
                 game={game}
                 legal={legal}
-                advice={settings.coachMode === 'visible' ? advice : null}
-                showHint={settings.coachMode === 'visible'}
-                onAction={onAction}
+                advice={null}
+                showHint={false}
+                onAction={(action) => props.onPlay(action)}
               />
             </div>
           ) : over ? (
@@ -561,7 +559,6 @@ function OnlineGame(props: {
       </div>
 
       <aside className="play__side">
-        <CoachPanel advice={advice} mode={settings.coachMode} feedback={feedback} heroTurn={heroTurn} bigBlind={game.bigBlind} />
         <Card size="3">
           <Text as="p" size="2" weight="bold" mb="3">
             Joueurs

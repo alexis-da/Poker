@@ -1153,6 +1153,35 @@ var AWAY_DELAY_MS = 400;
 var TURN_MS = 3e4;
 var NEXT_HAND_MS = 5e3;
 var MAX_TIMEOUTS = 2;
+var HANDS_PER_LEVEL = 6;
+var BLIND_LEVELS = [
+  [5, 10],
+  [10, 20],
+  [15, 30],
+  [25, 50],
+  [50, 100],
+  [75, 150],
+  [100, 200],
+  [150, 300],
+  [200, 400],
+  [300, 600],
+  [500, 1e3],
+  [750, 1500],
+  [1e3, 2e3],
+  [1500, 3e3],
+  [2500, 5e3]
+];
+function blindLevel(handNumber) {
+  const i = Math.min(BLIND_LEVELS.length - 1, Math.floor(Math.max(0, handNumber - 1) / HANDS_PER_LEVEL));
+  const [smallBlind, bigBlind] = BLIND_LEVELS[i];
+  return {
+    level: i + 1,
+    smallBlind,
+    bigBlind,
+    handsLeft: HANDS_PER_LEVEL - Math.max(0, handNumber - 1) % HANDS_PER_LEVEL,
+    last: i === BLIND_LEVELS.length - 1
+  };
+}
 var BOT_PROFILES2 = ["reg", "lag", "roc", "station"];
 var BOT_NAMES = ["Nora", "Marc", "L\xE9a", "Omar", "In\xE8s"];
 var HIDDEN = -1;
@@ -1173,7 +1202,7 @@ function newTable(seats, rng2, now) {
     BIG_BLIND
   );
   const t = { game: startHand(game, rng2), seats, nextAt: null, deadline: null, timeouts: {}, eliminations: [], over: false };
-  return schedule(t, now);
+  return settle(t, now);
 }
 function schedule(t, now) {
   const g = t.game;
@@ -1247,7 +1276,8 @@ function step(t, now, rng2) {
   if (t.over || t.nextAt === null || now < t.nextAt) return null;
   const g = t.game;
   if (g.result || g.toAct === null) {
-    return schedule({ ...t, game: startHand(g, rng2) }, now);
+    const lvl = blindLevel(g.handNumber + 1);
+    return settle({ ...t, game: startHand({ ...g, smallBlind: lvl.smallBlind, bigBlind: lvl.bigBlind }, rng2) }, now);
   }
   const seat = t.seats[g.toAct];
   if (seat.bot) return settle({ ...t, game: applyAction(g, decideBot(g, rng2)) }, now);

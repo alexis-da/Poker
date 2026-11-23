@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getLegalActions, type Action } from '../src/engine/game';
 import { seededRng, type Rng } from '../src/engine/random';
-import { HIDDEN, START_STACK, TURN_MS, type PublicTable, type ServerTable } from '../src/online/logic';
+import { blindLevel, HANDS_PER_LEVEL, HIDDEN, newTable, START_STACK, step, TURN_MS, type PublicTable, type ServerTable } from '../src/online/logic';
 import { handle, type HandRecord, type MemberRecord, type RoomRecord, type RoomStatus, type Store } from '../src/online/service';
 
 /** Base en mémoire, avec le même contrat que la base Supabase. */
@@ -124,6 +124,7 @@ describe('jeu en ligne', () => {
   });
 
   it('joue des parties complètes sans perdre de jetons ni dévoiler de cartes', async () => {
+    const lengths: number[] = [];
     for (const seed of [1, 2, 3]) {
       const { store, roomId } = await setup(true, 6);
       const rng = seededRng(seed * 101);
@@ -152,6 +153,9 @@ describe('jeu en ligne', () => {
         now += 50;
       }
       const t = store.secrets.get(roomId)!;
+      // Les blindes ont monté au fil des niveaux.
+      expect(t.game.bigBlind).toBe(blindLevel(t.game.handNumber).bigBlind);
+      lengths.push(t.game.handNumber);
       expect(store.rooms.get(roomId)!.status).toBe('terminee');
       expect(t.over).toBe(true);
       expect(total(t)).toBe(6 * START_STACK);
@@ -160,6 +164,29 @@ describe('jeu en ligne', () => {
       expect(new Set(places).size).toBe(places.length);
       expect(places[0]).toBe(1);
     }
+  });
+
+  it('les blindes montent d’un niveau toutes les 6 mains', () => {
+    expect(blindLevel(1)).toMatchObject({ level: 1, smallBlind: 5, bigBlind: 10, handsLeft: HANDS_PER_LEVEL });
+    expect(blindLevel(HANDS_PER_LEVEL)).toMatchObject({ level: 1, handsLeft: 1 });
+    expect(blindLevel(HANDS_PER_LEVEL + 1)).toMatchObject({ level: 2, smallBlind: 10, bigBlind: 20 });
+    expect(blindLevel(4 * HANDS_PER_LEVEL + 1)).toMatchObject({ level: 5, bigBlind: 100 });
+    expect(blindLevel(10_000).last).toBe(true);
+  });
+
+  it('une main terminée dès la donne (tapis sur les blindes) élimine et termine la partie', () => {
+    const rng = seededRng(11);
+    const seats = [
+      { userId: 'a', bot: null, name: 'A', away: false },
+      { userId: 'b', bot: null, name: 'B', away: false },
+    ];
+    let t = newTable(seats, rng, 0);
+    // Fin de main forcée : B n'a plus que 3 jetons, moins que la petite blinde suivante.
+    t = { ...t, game: { ...t.game, result: t.game.result ?? ({} as never), players: t.game.players.map((p, i) => ({ ...p, stack: i === 0 ? 2 * START_STACK - 3 : 3, contributed: 0 })) } };
+    let guard = 0;
+    while (!t.over && guard++ < 50) t = step(t, t.nextAt ?? 0, rng) ?? t;
+    expect(t.over).toBe(true);
+    expect(t.eliminations.map((e) => e.place).sort()).toEqual([1, 2]);
   });
 
   it('une étape automatique n’est jouée qu’à son heure, une seule fois', async () => {

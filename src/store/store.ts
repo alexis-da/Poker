@@ -42,6 +42,8 @@ export interface Settings {
   opponents: number;
   startingBB: number;
   autoNext: boolean;
+  /** Votre main reste de dos (écran visible par d'autres) ; on la regarde en maintenant dessus. */
+  hideCards: boolean;
 }
 
 export interface AppData {
@@ -78,6 +80,7 @@ export const defaultSettings = (): Settings => ({
   opponents: 5,
   startingBB: 100,
   autoNext: false,
+  hideCards: false,
 });
 
 function fresh(): AppData {

@@ -1,4 +1,4 @@
-import { ArrowRightIcon, ExitIcon } from '@radix-ui/react-icons';
+import { ArrowRightIcon, ExitIcon, EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons';
 import {
   Badge,
   Button,
@@ -22,6 +22,7 @@ import { ActionBar } from './ActionBar';
 import { CoachPanel } from './CoachPanel';
 import { botAct, heroAct, leaveTable, newTable, nextHand, placeLabel, replay, useSession } from './session';
 import { PROFILE_COLOR, Table } from './Table';
+import { usePeek } from './usePeek';
 
 const SPEED_MS = { lent: 1500, normal: 850, rapide: 320 };
 const STREET_FR = { preflop: 'Préflop', flop: 'Flop', turn: 'Turn', river: 'River', showdown: 'Abattage' } as const;
@@ -161,6 +162,23 @@ function Setup() {
   );
 }
 
+/** Bouton œil : cacher sa main quand d'autres joueurs voient l'écran. */
+export function HideCardsToggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <Button
+      size="2"
+      variant={on ? 'solid' : 'soft'}
+      color={on ? 'grass' : 'gray'}
+      onClick={() => onChange(!on)}
+      aria-pressed={on}
+      aria-label={on ? 'Cartes cachées : afficher mes cartes en permanence' : 'Cacher mes cartes'}
+      className="hide-cards-toggle"
+    >
+      {on ? <EyeClosedIcon /> : <EyeOpenIcon />} <span className="hide-phone">{on ? 'Cartes cachées' : 'Cacher mes cartes'}</span>
+    </Button>
+  );
+}
+
 function TableSettings() {
   const [settings, setSettings] = useSettings();
   return (
@@ -205,6 +223,12 @@ function TableSettings() {
       </Text>
       <Text as="label" size="2">
         <Flex justify="between" align="center" gap="3">
+          Cacher mes cartes (écran partagé)
+          <Switch id="hide-cards" checked={settings.hideCards} onCheckedChange={(v) => setSettings({ hideCards: v })} />
+        </Flex>
+      </Text>
+      <Text as="label" size="2">
+        <Flex justify="between" align="center" gap="3">
           Main suivante automatique
           <Switch id="auto-next" checked={settings.autoNext} onCheckedChange={(v) => setSettings({ autoNext: v })} />
         </Flex>
@@ -215,8 +239,9 @@ function TableSettings() {
 
 export function Play() {
   const session = useSession();
-  const [settings] = useSettings();
+  const [settings, setSettings] = useSettings();
   const game = session.game;
+  const peek = usePeek(settings.hideCards);
   const [confirmLeave, setConfirmLeave] = useState(false);
 
   const heroIndex = game ? game.players.findIndex((p) => p.isHuman) : -1;
@@ -298,32 +323,35 @@ export function Play() {
               {title}
             </Heading>
           </div>
-          {confirmLeave ? (
-            <Flex gap="2" align="center" wrap="wrap">
-              <Text size="2">Quitter la table ?</Text>
-              <Button
-                size="2"
-                color="tomato"
-                onClick={() => {
-                  setConfirmLeave(false);
-                  leaveTable();
-                }}
-              >
-                Quitter
+          <Flex gap="2" align="center" wrap="wrap" justify="end">
+            <HideCardsToggle on={settings.hideCards} onChange={(v) => setSettings({ hideCards: v })} />
+            {confirmLeave ? (
+              <Flex gap="2" align="center" wrap="wrap">
+                <Text size="2">Quitter la table ?</Text>
+                <Button
+                  size="2"
+                  color="tomato"
+                  onClick={() => {
+                    setConfirmLeave(false);
+                    leaveTable();
+                  }}
+                >
+                  Quitter
+                </Button>
+                <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(false)}>
+                  Rester
+                </Button>
+              </Flex>
+            ) : (
+              <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(true)} aria-label="Quitter la table">
+                <ExitIcon /> <span className="hide-phone">Quitter la table</span>
               </Button>
-              <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(false)}>
-                Rester
-              </Button>
-            </Flex>
-          ) : (
-            <Button size="2" variant="soft" color="gray" onClick={() => setConfirmLeave(true)} aria-label="Quitter la table">
-              <ExitIcon /> <span className="hide-phone">Quitter la table</span>
-            </Button>
-          )}
+            )}
+          </Flex>
         </div>
 
         <div className="table-area">
-          <Table game={game} thinking={thinking} thinkMs={thinkMs} />
+          <Table game={game} thinking={thinking} thinkMs={thinkMs} concealHero={peek.concealed} peekHandlers={peek.handlers} />
         </div>
 
         <div className="console">
@@ -331,8 +359,8 @@ export function Play() {
             <ActionBar
               game={game}
               legal={legal}
-              advice={settings.coachMode === 'visible' ? advice : null}
-              showHint={settings.coachMode === 'visible'}
+              advice={settings.coachMode === 'visible' && !peek.concealed ? advice : null}
+              showHint={settings.coachMode === 'visible' && !peek.concealed}
               onAction={onHeroAction}
             />
           ) : game.result ? (
@@ -386,6 +414,7 @@ export function Play() {
           feedback={session.feedback}
           heroTurn={heroTurn}
           bigBlind={game.bigBlind}
+          concealed={peek.concealed}
         />
         <Card size="3">
           <Text as="p" size="2" weight="bold" mb="3">
